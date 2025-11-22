@@ -1,0 +1,315 @@
+<script setup>
+import { ref, onMounted, computed } from 'vue'
+
+// ===== State Management =====
+const isDragging = ref(false)
+const startX = ref(0)
+const scrollLeft = ref(0)
+const containerWidth = ref(0)
+
+// ===== Movie Data =====
+const movies = [
+  {
+    id: 1,
+    title: 'Pesugihan Sate Gagak',
+    image: new URL('../assets/film-1.webp', import.meta.url).href
+  },
+  {
+    id: 2,
+    title: 'Pangku',
+    image: new URL('../assets/film-2.webp', import.meta.url).href
+  },
+  {
+    id: 3,
+    title: 'Dopamin',
+    image: new URL('../assets/film-3.webp', import.meta.url).href
+  },
+  {
+    id: 4,
+    title: 'Danyang Wingit Jumat Kliwon',
+    image: new URL('../assets/film-4.webp', import.meta.url).href
+  },
+  {
+    id: 5,
+    title: 'Wicked: For Good',
+    image: new URL('../assets/film-5.webp', import.meta.url).href
+  },
+  {
+    id: 6,
+    title: 'Now You See Me: Now You Dont',
+    image: new URL('../assets/film-6.webp', import.meta.url).href
+  },
+  {
+    id: 7,
+    title: 'The Running Man',
+    image: new URL('../assets/film-7.webp', import.meta.url).href
+  },
+  {
+    id: 8,
+    title: 'Keeper',
+    image: new URL('../assets/film-8.webp', import.meta.url).href
+  }
+]
+
+const infiniteMovies = computed(() => {
+  return [...movies, ...movies, ...movies]
+})
+
+// ===== Refs =====
+const carouselRef = ref(null)
+const containerRef = ref(null)
+let scrollTimeout = null
+
+// ===== Computed Properties =====
+const cardWidth = computed(() => {
+  if (!containerWidth.value) return 160
+  const availableWidth = containerWidth.value
+  
+  // Mobile: 2 cards, Tablet: 3 cards, Desktop: 4 cards
+  if (availableWidth < 640) {
+    const gap = 16
+    return (availableWidth - gap) / 2 - 8
+  } else if (availableWidth < 1024) {
+    const gap = 20
+    return (availableWidth - (2 * gap)) / 3
+  } else {
+    const gap = 24
+    return (availableWidth - (3 * gap)) / 4
+  }
+})
+
+const gapSize = computed(() => {
+  if (!containerWidth.value) return 16
+  if (containerWidth.value < 640) return 16
+  if (containerWidth.value < 1024) return 20
+  return 24
+})
+
+// ===== Mouse Drag Handlers =====
+const handleMouseDown = (e) => {
+  isDragging.value = true
+  startX.value = e.pageX - carouselRef.value.offsetLeft
+  scrollLeft.value = carouselRef.value.scrollLeft
+  carouselRef.value.style.cursor = 'grabbing'
+}
+
+const handleMouseMove = (e) => {
+  if (!isDragging.value) return
+  e.preventDefault()
+  const x = e.pageX - carouselRef.value.offsetLeft
+  const walk = x - startX.value
+  carouselRef.value.scrollLeft = scrollLeft.value - walk
+}
+
+const handleMouseUp = () => {
+  if (!isDragging.value) return
+  isDragging.value = false
+  carouselRef.value.style.cursor = 'grab'
+  
+  setTimeout(() => {
+    snapToNearestCard()
+  }, 50)
+}
+
+const handleMouseLeave = () => {
+  if (isDragging.value) {
+    isDragging.value = false
+    carouselRef.value.style.cursor = 'grab'
+    
+    setTimeout(() => {
+      snapToNearestCard()
+    }, 50)
+  }
+}
+
+// ===== Snap & Scroll Functions =====
+const snapToNearestCard = () => {
+  if (!carouselRef.value || isDragging.value) return
+  
+  const currentScroll = carouselRef.value.scrollLeft
+  const totalCardWidth = cardWidth.value + gapSize.value
+  
+  const nearestCardIndex = Math.round(currentScroll / totalCardWidth)
+  const snapPosition = nearestCardIndex * totalCardWidth
+  
+  if (Math.abs(currentScroll - snapPosition) > 1) {
+    carouselRef.value.scrollTo({
+      left: snapPosition,
+      behavior: 'smooth'
+    })
+  }
+}
+
+const handleScroll = () => {
+  if (scrollTimeout) {
+    clearTimeout(scrollTimeout)
+  }
+  
+  scrollTimeout = setTimeout(() => {
+    if (!isDragging.value) {
+      snapToNearestCard()
+    }
+    checkInfiniteScroll()
+  }, 150)
+}
+
+const checkInfiniteScroll = () => {
+  if (!carouselRef.value || isDragging.value) return
+  
+  const currentScroll = carouselRef.value.scrollLeft
+  const totalCardWidth = cardWidth.value + gapSize.value
+  const oneSetWidth = movies.length * totalCardWidth
+  
+  if (currentScroll >= oneSetWidth * 2 - totalCardWidth) {
+    const offset = currentScroll - oneSetWidth
+    carouselRef.value.scrollLeft = offset
+  }
+  
+  if (currentScroll <= totalCardWidth) {
+    const offset = currentScroll + oneSetWidth
+    carouselRef.value.scrollLeft = offset
+  }
+}
+
+// ===== Navigation Handlers =====
+const nextSlide = () => {
+  if (carouselRef.value) {
+    const currentScroll = carouselRef.value.scrollLeft
+    const totalCardWidth = cardWidth.value + gapSize.value
+    carouselRef.value.scrollTo({
+      left: currentScroll + totalCardWidth,
+      behavior: 'smooth'
+    })
+    
+    setTimeout(() => {
+      checkInfiniteScroll()
+    }, 300)
+  }
+}
+
+const prevSlide = () => {
+  if (carouselRef.value) {
+    const currentScroll = carouselRef.value.scrollLeft
+    const totalCardWidth = cardWidth.value + gapSize.value
+    carouselRef.value.scrollTo({
+      left: currentScroll - totalCardWidth,
+      behavior: 'smooth'
+    })
+    
+    setTimeout(() => {
+      checkInfiniteScroll()
+    }, 300)
+  }
+}
+
+// ===== Utility Functions =====
+const updateContainerWidth = () => {
+  if (containerRef.value) {
+    containerWidth.value = containerRef.value.offsetWidth
+  }
+}
+
+// ===== Lifecycle Hooks =====
+onMounted(() => {
+  updateContainerWidth()
+  window.addEventListener('resize', updateContainerWidth)
+  
+  if (carouselRef.value) {
+    const totalCardWidth = cardWidth.value + gapSize.value
+    const oneSetWidth = movies.length * totalCardWidth
+    carouselRef.value.scrollLeft = oneSetWidth
+    
+    carouselRef.value.addEventListener('scroll', handleScroll, { passive: true })
+  }
+})
+</script>
+
+<template>
+  <!-- ===== Now Showing Section ===== -->
+  <section class="py-12 sm:py-16 lg:py-20 bg-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      
+      <!-- ===== Section Header ===== -->
+      <div class="mb-8 sm:mb-10 lg:mb-12">
+        <h2 class="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-900 mb-2">
+          NOW SHOWING IN CINEMAS
+        </h2>
+      </div>
+
+      <!-- ===== Carousel Container ===== -->
+      <div ref="containerRef" class="relative">
+        
+        <!-- ===== Scrollable Movie Grid ===== -->
+        <div 
+          ref="carouselRef"
+          @mousedown="handleMouseDown"
+          @mousemove="handleMouseMove"
+          @mouseup="handleMouseUp"
+          @mouseleave="handleMouseLeave"
+          class="overflow-x-auto scrollbar-hide"
+          style="scrollbar-width: none; -ms-overflow-style: none; cursor: grab;"
+        >
+          <div class="flex gap-4 sm:gap-5 lg:gap-6 pb-4">
+            <div 
+              v-for="(movie, index) in infiniteMovies" 
+              :key="`movie-${index}`"
+              class="shrink-0"
+              :style="{ width: `${cardWidth}px` }"
+            >
+              <div class="group cursor-pointer select-none">
+                
+                <!-- ===== Movie Poster ===== -->
+                <div class="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-3 aspect-2/3 bg-gray-200">
+                  <img 
+                    :src="movie.image" 
+                    :alt="movie.title"
+                    class="w-full h-full object-cover transform transition-transform duration-500 group-hover:scale-110"
+                    draggable="false"
+                  >
+                </div>
+                
+                <!-- ===== Movie Title ===== -->
+                <h3 class="font-bold text-sm sm:text-base text-gray-900 group-hover:text-blue-600 transition-colors duration-300 line-clamp-2">
+                  {{ movie.title }}
+                </h3>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== Navigation Buttons ===== -->
+        <button 
+          @click="prevSlide"
+          class="hidden lg:flex group absolute -left-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/15 backdrop-blur-xl rounded-full border border-white/20 items-center justify-center transition-all duration-300 hover:bg-white/25 hover:scale-110 z-10 shadow-xl"
+        >
+          <svg class="w-6 h-6 text-gray-900 transform transition-transform duration-300 group-hover:-translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+          </svg>
+        </button>
+
+        <button 
+          @click="nextSlide"
+          class="hidden lg:flex group absolute -right-6 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/15 backdrop-blur-xl rounded-full border border-white/20 items-center justify-center transition-all duration-300 hover:bg-white/25 hover:scale-110 z-10 shadow-xl"
+        >
+          <svg class="w-6 h-6 text-gray-900 transform transition-transform duration-300 group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </section>
+</template>
+
+<style scoped>
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+</style>
