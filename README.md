@@ -43,6 +43,7 @@ Aplikasi ini dirancang untuk menyelesaikan permasalahan utama pada sistem jadwal
 | Komponen           | Teknologi       |
 | ------------------ | --------------- |
 | Backend            | **Rust + Axum** |
+| Frontend           | **VueJS**       |
 | Runtime Async      | **Tokio**       |
 | Database           | MySQL           |
 | JSON Serialization | Serde           |
