@@ -413,3 +413,217 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+/* sp_resister_user stored procedure */
+DELIMITER $$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_register_user`(
+    IN p_name VARCHAR(100),
+    IN p_email VARCHAR(100),
+    IN p_password VARCHAR(255),
+    IN p_role ENUM('admin','customer')
+)
+BEGIN
+    -- Cek email sudah dipakai atau belum
+    IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Email sudah terdaftar';
+    END IF;
+
+    INSERT INTO users (name, email, password, role)
+    VALUES (p_name, p_email, p_password, p_role);
+    
+    SELECT LAST_INSERT_ID() AS user_id;
+END$$
+DELIMITER ;
+
+/* sp_login_user stored procedure */
+DELIMITER $$
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_login_user`(
+    IN p_email VARCHAR(100),
+    IN p_password VARCHAR(255)
+)
+BEGIN
+    DECLARE v_user_id BIGINT;
+
+    SELECT id
+    INTO v_user_id
+    FROM users
+    WHERE email = p_email
+      AND password = p_password
+    LIMIT 1;
+
+    IF v_user_id IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Email atau password salah';
+    END IF;
+
+    SELECT id, name, email, role, created_at
+    FROM users
+    WHERE id = v_user_id;
+END$$
+DELIMITER ;
+
+DELIMITER $$
+
+/* sp_jadwal_kota_tanggal stored procedure */
+CREATE PROCEDURE sp_jadwal_kota_tanggal (
+    IN p_kota VARCHAR(100),
+    IN p_tanggal DATE
+)
+BEGIN
+    SELECT 
+        st.id AS showtime_id,
+        m.id AS movie_id,
+        m.title,
+        m.genre,
+        m.rating,
+        m.duration,
+        c.name AS nama_bioskop,
+        c.city,
+        s.name AS studio,
+        s.type AS jenis_studio,
+        st.start_time,
+        st.price
+    FROM showtimes st
+    JOIN movies m ON m.id = st.movie_id
+    JOIN studios s ON s.id = st.studio_id
+    JOIN cinemas c ON c.id = s.cinema_id
+    WHERE c.city = p_kota
+      AND DATE(st.start_time) = p_tanggal
+    ORDER BY m.title, st.start_time;
+END$$
+
+DELIMITER ;
+
+
+/* sp_kusi_tersedia */
+
+DELIMITER $$
+
+CREATE PROCEDURE sp_kursi_tersedia (
+    IN p_showtime_id BIGINT
+)
+BEGIN
+    SELECT 
+        s.id,
+        s.studio_id,
+        s.seat_code,
+        s.seat_row,
+        s.seat_col,
+        s.seat_status
+    FROM seats s
+    JOIN showtimes st ON st.studio_id = s.studio_id
+    WHERE st.id = p_showtime_id
+      AND s.seat_status = 'AVAILABLE'
+      AND s.id NOT IN (
+          SELECT bs.seat_id
+          FROM booking_seats bs
+          JOIN bookings b ON b.id = bs.booking_id
+          WHERE b.showtime_id = p_showtime_id
+      )
+    ORDER BY s.seat_row, s.seat_col;
+END$$
+
+DELIMITER ;
+
+
+
+/* sp_buat_pemesanan_satu_kursi */
+DELIMITER $$
+
+CREATE PROCEDURE sp_buat_pemesanan_satu_kursi (
+    IN p_user_id BIGINT,
+    IN p_showtime_id BIGINT,
+    IN p_seat_id BIGINT
+)
+BEGIN
+    DECLARE v_price DECIMAL(10,2);
+    DECLARE v_booking_id BIGINT;
+    DECLARE v_kode VARCHAR(20);
+
+    SELECT price INTO v_price
+    FROM showtimes WHERE id = p_showtime_id;
+
+    IF v_price IS NULL THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Jadwal tidak ditemukan';
+    END IF;
+
+    IF NOT EXISTS (
+        SELECT 1
+        FROM seats s
+        JOIN showtimes st ON st.studio_id = s.studio_id
+        WHERE st.id = p_showtime_id AND s.id = p_seat_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Kursi tidak valid untuk jadwal ini';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+        FROM booking_seats bs
+        JOIN bookings b ON b.id = bs.booking_id
+        WHERE b.showtime_id = p_showtime_id
+          AND bs.seat_id = p_seat_id
+    ) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Kursi sudah dipesan';
+    END IF;
+
+    SET v_kode = CONCAT('BK', UNIX_TIMESTAMP());
+
+    INSERT INTO bookings (user_id, showtime_id, booking_code, total_price, payment_status)
+    VALUES (p_user_id, p_showtime_id, v_kode, v_price, 'PENDING');
+
+    SET v_booking_id = LAST_INSERT_ID();
+
+    INSERT INTO booking_seats (booking_id, seat_id, price)
+    VALUES (v_booking_id, p_seat_id, v_price);
+
+    SELECT v_booking_id AS booking_id, v_kode AS booking_code, v_price AS total_price;
+END$$
+
+DELIMITER ;
+
+
+/* sp_tandai_pembayaran */
+DELIMITER $$
+
+CREATE PROCEDURE sp_tandai_pembayaran (
+    IN p_booking_id BIGINT
+)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM bookings WHERE id = p_booking_id) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pemesanan tidak ditemukan';
+    END IF;
+
+    UPDATE bookings
+    SET payment_status = 'PAID'
+    WHERE id = p_booking_id;
+
+    SELECT * FROM bookings WHERE id = p_booking_id;
+END$$
+
+DELIMITER ;
+
+/* sp_batalkan_pemesanan */
+DELIMITER $$
+
+CREATE PROCEDURE sp_batalkan_pemesanan (
+    IN p_booking_id BIGINT
+)
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM bookings WHERE id = p_booking_id) THEN
+        SIGNAL SQLSTATE '45000'
+            SET MESSAGE_TEXT = 'Pemesanan tidak ditemukan';
+    END IF;
+
+    UPDATE bookings
+    SET payment_status = 'CANCELLED'
+    WHERE id = p_booking_id;
+
+    SELECT * FROM bookings WHERE id = p_booking_id;
+END$$
+
+DELIMITER ;
