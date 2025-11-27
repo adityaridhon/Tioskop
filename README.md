@@ -4,7 +4,7 @@ _A Functional Programming Approach with Rust_
 
 **Authors:**<br/>
 Kelompok 3 - Pemrograman Fungsional A <br/>
-Aditya Ridho Nugroho | Alief Rachmattul Islam | Arya Zaky Pradipta | Muhamad Faisal | Muhammad Fatwa Al-Choiri
+Aditya Ridho Nugroho | Alief Rachmattul Islam | Arya Zaky Pradipta | Muhamad Faisal | Muhammad Fatwa Al Choiri
 
 ---
 
