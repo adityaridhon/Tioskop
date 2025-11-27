@@ -1,3 +1,12 @@
+<style>
+pre code {
+  white-space: pre-wrap;
+}
+pre {
+  overflow-x: auto;
+}
+</style>
+
 # **Tioskop – Lihat & Booking Film 🎫**
 
 _A Functional Programming Approach with Rust_
@@ -65,47 +74,80 @@ Dengan ini aplikasi bisa menangani ratusan request booking serentak tanpa konfli
 
 ## **Source Code Overview**
 
-### Struktur Folder Backend
+### Struktur Folder Project
 
 ```
-backend/
-├── src/
-│   ├── main.rs
+tioskop/
+├── backend/                         # Backend
+│   ├── src/
+│   │   ├── main.rs                  # Entry point aplikasi
+│   │   │
+│   │   ├── config/
+│   │   │   └── mod.rs               # Database connection pool
+│   │   │
+│   │   ├── models/                  # Data models
+│   │   │   ├── mod.rs
+│   │   │   ├── movie.rs
+│   │   │   ├── showtime.rs
+│   │   │   ├── studio.rs
+│   │   │   ├── seat.rs
+│   │   │   ├── booking.rs
+│   │   │   └── response.rs
+│   │   │
+│   │   ├── handlers/                # Business logic layer
+│   │   │   ├── mod.rs
+│   │   │   ├── movie_handler.rs
+│   │   │   ├── showtime_handler.rs
+│   │   │   ├── studio_handler.rs
+│   │   │   ├── seat_handler.rs
+│   │   │   └── booking_handler.rs
+│   │   │
+│   │   └── routes/                  # Routing layer
+│   │       ├── mod.rs
+│   │       ├── movie_routes.rs
+│   │       ├── showtime_routes.rs
+│   │       ├── studio_routes.rs
+│   │       ├── seat_routes.rs
+│   │       └── booking_routes.rs
 │   │
-│   ├── config/
-│   │   └── mod.rs                   # Database konfigurasi
-│   │
-│   ├── models/                      # Data model
-│   │   ├── mod.rs
-│   │   ├── movie.rs
-│   │   ├── showtime.rs
-│   │   ├── studio.rs
-│   │   ├── seat.rs
-│   │   ├── booking.rs
-│   │   └── response.rs
-│   │
-│   ├── handlers/                    # Logic
-│   │   ├── mod.rs
-│   │   ├── movie_handler.rs
-│   │   ├── showtime_handler.rs
-│   │   ├── studio_handler.rs
-│   │   ├── seat_handler.rs
-│   │   └── booking_handler.rs
-│   │
-│   └── routes/                      # Routing endpoint
-│       ├── mod.rs
-│       ├── movie_routes.rs
-│       ├── showtime_routes.rs
-│       ├── studio_routes.rs
-│       ├── seat_routes.rs
-│       └── booking_routes.rs
+│   ├── target/
+│   ├── Cargo.toml                   # Rust dependencies
+│   ├── Cargo.lock
+│   ├── .env                         # Environment variables
+│   └── tioskop_db.sql               # Database schema & seed data
 │
-├── Cargo.toml                       # Dependencies
-├── .env                             # Environment variables
-└── tioskop_db.sql                   # Database schema
+├── frontend/                        # Frontend
+│   ├── src/
+│   │   ├── main.js
+│   │   ├── App.vue
+│   │   ├── style.css
+│   │   │
+│   │   ├── components/              # Vue components
+│   │   │   ├── Navbar.vue
+│   │   │   ├── HeroSection.vue
+│   │   │   ├── SearchSection.vue
+│   │   │   └── NowShowingSection.vue
+│   │   │
+│   │   └── assets/                  # Static assets (images, icons)
+│   │
+│   ├── public/                      # Public static files
+│   │   └── vite.svg
+│   │
+│   ├── node_modules/                # npm dependencies
+│   ├── package.json
+│   ├── package-lock.json
+│   ├── vite.config.js
+│   ├── index.html
+│   ├── .gitignore
+│
+├── asset/                           # Project assets (screenshots, docs)
+├── APIDoc.md                        # API documentation
+└── README.md                        # Project documentation
 ```
 
-### File Utama
+---
+
+### File Utama Backend
 
 #### **src/main.rs**
 
@@ -1589,6 +1631,266 @@ Membuat endpoint studio dengan method get, post, put dan delete.
 011          .route("/api/bookings/{id}/cancel", put(cancel_booking))
 012  }
 ```
+
+---
+
+### Penjelasan Struktur Frontend
+
+#### 📂 **Frontend Architecture (Component-Based)**
+
+Frontend menggunakan Vue.js 3 dengan Composition API dan TailwindCSS untuk styling:
+
+1. **Entry Point (`main.js`)**: Bootstrap Vue application
+2. **Root Component (`App.vue`)**: Main layout dan component composition
+3. **Components (`components/`)**: Reusable Vue components
+4. **Styles (`style.css`)**: Global CSS dan Tailwind directives
+5. **Build Tool (`vite.config.js`)**: Vite bundler configuration
+
+---
+
+### File Utama Frontend
+
+#### **src/main.js**
+
+Entry point yang menginisialisasi Vue application:
+
+```javascript
+import { createApp } from "vue";
+import "./style.css";
+import App from "./App.vue";
+
+createApp(App).mount("#app");
+```
+
+**Fungsi:**
+
+- Import Vue 3 core
+- Load global styles (termasuk Tailwind)
+- Mount App component ke DOM element `#app`
+
+---
+
+#### **src/App.vue**
+
+Root component yang meng-compose semua sections:
+
+```vue
+<script setup>
+import Navbar from "./components/Navbar.vue";
+import HeroSection from "./components/HeroSection.vue";
+import SearchSection from "./components/SearchSection.vue";
+import NowShowingSection from "./components/NowShowingSection.vue";
+</script>
+
+<template>
+  <div class="min-h-screen bg-gray-50">
+    <Navbar />
+    <HeroSection />
+    <SearchSection />
+    <NowShowingSection />
+  </div>
+</template>
+```
+
+**Struktur:**
+
+- Composition API dengan `<script setup>`
+- Component imports
+- Layout dengan Tailwind utility classes
+
+---
+
+#### **src/components/Navbar.vue**
+
+Navigation bar component:
+
+**Features:**
+
+- Logo Tioskop
+- Navigation links (Home, Movies, About)
+- Responsive design dengan Tailwind
+
+---
+
+#### **src/components/HeroSection.vue**
+
+Hero banner section:
+
+**Features:**
+
+- Eye-catching headline
+- Call-to-action button
+- Background gradient
+- Cinema-themed imagery
+
+---
+
+#### **src/components/SearchSection.vue**
+
+Film search functionality:
+
+**Features:**
+
+- Search input field
+- Filter options (genre, date)
+- Live search functionality (future: connect to API)
+- Responsive grid layout
+
+---
+
+#### **src/components/NowShowingSection.vue**
+
+Display now showing films:
+
+**Features:**
+
+- Film cards grid
+- Fetch data dari `/api/movies/all` endpoint
+- Display: poster, title, genre, rating
+- Book button untuk setiap film
+- Responsive grid (1-2-3-4 columns)
+
+**API Integration:**
+
+```javascript
+const fetchMovies = async () => {
+  try {
+    const response = await fetch("http://127.0.0.1:3000/api/movies/all");
+    const data = await response.json();
+    if (data.success) {
+      movies.value = data.data;
+    }
+  } catch (error) {
+    console.error("Failed to fetch movies:", error);
+  }
+};
+```
+
+---
+
+#### **vite.config.js**
+
+Vite bundler configuration:
+
+```javascript
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+
+export default defineConfig({
+  plugins: [vue()],
+  server: {
+    port: 5173,
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:3000",
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+**Features:**
+
+- Vue plugin integration
+- Development server port: 5173
+- API proxy untuk backend requests
+- Hot Module Replacement (HMR)
+
+---
+
+#### **package.json**
+
+npm dependencies dan scripts:
+
+```json
+{
+  "name": "tioskop-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.0",
+    "autoprefixer": "^10.4.0",
+    "postcss": "^8.4.0",
+    "tailwindcss": "^3.4.0",
+    "vite": "^5.0.0"
+  }
+}
+```
+
+**Key Dependencies:**
+
+- **Vue 3**: Progressive JavaScript framework
+- **Vite**: Fast build tool dengan HMR
+- **TailwindCSS**: Utility-first CSS framework
+- **PostCSS**: CSS transformation tool
+- **Autoprefixer**: Vendor prefix otomatis
+
+---
+
+### Frontend Development Workflow
+
+#### 1. **Install Dependencies**
+
+```bash
+cd frontend
+npm install
+```
+
+#### 2. **Run Development Server**
+
+```bash
+npm run dev
+```
+
+Server akan berjalan di `http://localhost:5173`
+
+#### 3. **Build for Production**
+
+```bash
+npm run build
+```
+
+Generates optimized production build di `dist/` folder
+
+#### 4. **Preview Production Build**
+
+```bash
+npm run preview
+```
+
+---
+
+### Integration Backend ↔️ Frontend
+
+#### Data Flow:
+
+```
+Frontend (Vue)  →  HTTP Request  →  Backend (Rust/Axum)
+                                      ↓
+                                  MySQL Database
+                                      ↓
+Backend (Rust)  →  JSON Response  →  Frontend (Vue)
+                                      ↓
+                                  Render UI
+```
+
+#### API Endpoints Integration:
+
+| Frontend Action | API Endpoint                         | Method | Handler                    |
+| --------------- | ------------------------------------ | ------ | -------------------------- |
+| Load movies     | `/api/movies/all`                    | GET    | `get_all_movies()`         |
+| Search movies   | `/api/movies?q={query}`              | GET    | `search_movies()`          |
+| View showtimes  | `/api/showtimes/movie/{id}`          | GET    | `get_showtimes_by_movie()` |
+| Select seats    | `/api/seats/showtime/{id}/available` | GET    | `get_available_seats()`    |
+| Create booking  | `/api/bookings`                      | POST   | `create_booking()`         |
 
 ---
 
