@@ -4,13 +4,23 @@ import Admin from '../pages/Admin.vue'
 import JadwalTayang from '../pages/JadwalTayang.vue'
 import Movies from '../pages/Movies.vue'
 import Users from '../pages/Users.vue'
+import CinemaSchedule from '../pages/CinemaSchedule.vue' // ✅ page bioskop
 
 const routes = [
+  // ===== PUBLIC ROUTES =====
   {
     path: '/',
     name: 'Home',
     component: Home
   },
+  {
+    path: '/bioskop/:slug',        
+    name: 'CinemaSchedule',
+    component: CinemaSchedule,
+    props: true
+  },
+
+  // ===== ADMIN ROUTES =====
   {
     path: '/admin',
     name: 'Admin',

@@ -9,7 +9,7 @@ const router = useRouter();
     <div class="shrink-0 mb-4">
       <div class="relative">
         <!-- Background Shape -->
-        <div class="absolute inset-0 bg-gradient-to-br from-blue-900 to-blue-950 rounded-xl transform -skew-x-6 shadow-lg"></div>
+        <div class="absolute inset-0 bg-linear-to-br from-blue-900 to-blue-950 rounded-xl transform -skew-x-6 shadow-lg"></div>
         <!-- Text -->
         <h1 class="relative text-lg font-bold px-4 py-1 text-white text-center">TIOS-MIN</h1>
       </div>

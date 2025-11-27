@@ -47,7 +47,7 @@ const toggleFullscreen = () => {
     <ul class="ml-auto flex items-center">
       <li class="dropdown ml-3 relative">
         <button type="button" @click="toggleDropdown('profile')" class="flex items-center">
-          <div class="flex-shrink-0 w-10 h-10 relative">
+          <div class="shrink-0 w-10 h-10 relative">
             <div class="p-1 bg-white rounded-full focus:outline-none focus:ring">
               <img class="w-8 h-8 rounded-full" src="https://avatars.githubusercontent.com/u/129702461?v=4" alt=""/>
             </div>
