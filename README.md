@@ -8,6 +8,7 @@ pre {
 </style>
 
 # **Tioskop – Lihat & Booking Film 🎫**
+
 ### https://github.com/adityaridhon/Tioskop
 
 _A Functional Programming Approach with Rust_
@@ -1637,8 +1638,6 @@ Membuat endpoint studio dengan method get, post, put dan delete.
 
 ### Penjelasan Struktur Frontend
 
-#### 📂 **Frontend Architecture (Component-Based)**
-
 Frontend menggunakan Vue.js 3 dengan Composition API dan TailwindCSS untuk styling:
 
 1. **Entry Point (`main.js`)**: Bootstrap Vue application
@@ -1826,85 +1825,47 @@ npm dependencies dan scripts:
 }
 ```
 
-**Key Dependencies:**
-
-- **Vue 3**: Progressive JavaScript framework
-- **Vite**: Fast build tool dengan HMR
-- **TailwindCSS**: Utility-first CSS framework
-- **PostCSS**: CSS transformation tool
-- **Autoprefixer**: Vendor prefix otomatis
-
----
-
-### Frontend Development Workflow
-
-#### 1. **Install Dependencies**
-
-```bash
-cd frontend
-npm install
-```
-
-#### 2. **Run Development Server**
-
-```bash
-npm run dev
-```
-
-Server akan berjalan di `http://localhost:5173`
-
-#### 3. **Build for Production**
-
-```bash
-npm run build
-```
-
-Generates optimized production build di `dist/` folder
-
-#### 4. **Preview Production Build**
-
-```bash
-npm run preview
-```
-
----
-
-### Integration Backend ↔️ Frontend
-
-#### Data Flow:
-
-```
-Frontend (Vue)  →  HTTP Request  →  Backend (Rust/Axum)
-                                      ↓
-                                  MySQL Database
-                                      ↓
-Backend (Rust)  →  JSON Response  →  Frontend (Vue)
-                                      ↓
-                                  Render UI
-```
-
-#### API Endpoints Integration:
-
-| Frontend Action | API Endpoint                         | Method | Handler                    |
-| --------------- | ------------------------------------ | ------ | -------------------------- |
-| Load movies     | `/api/movies/all`                    | GET    | `get_all_movies()`         |
-| Search movies   | `/api/movies?q={query}`              | GET    | `search_movies()`          |
-| View showtimes  | `/api/showtimes/movie/{id}`          | GET    | `get_showtimes_by_movie()` |
-| Select seats    | `/api/seats/showtime/{id}/available` | GET    | `get_available_seats()`    |
-| Create booking  | `/api/bookings`                      | POST   | `create_booking()`         |
-
 ---
 
 ## **Screenshot**
 
-OTW
+### Dashboard Admin
 
-| Tampilan                  | Status |
-| ------------------------- | ------ |
-| API Get Movies            | OTW    |
-| Daftar Studio + Kursi     | OTW    |
-| Halaman Booking           | OTW    |
-| Response JSON Book Sukses | OTW    |
+Dashboard utama admin untuk mengelola sistem bioskop:
+
+![Dashboard Admin](asset/dashboardadmin.jpeg)
+
+**Features:**
+
+- Overview sistem (film, jadwal, studio)
+- Menu navigasi untuk manajemen data
+
+---
+
+### Dashboard Data Pelanggan
+
+Interface untuk mengelola data pelanggan dan booking:
+
+![Dashboard Data Pelanggan](asset/dashboad_datapelanggan.jpeg)
+
+**Features:**
+
+- List data pelanggan
+
+---
+
+### Dashboard Schedule
+
+Interface untuk mengelola jadwal tayang film:
+
+![Dashboard Schedule](asset/dashboard_schedule.jpeg)
+
+**Features:**
+
+- Daftar jadwal tayang (showtimes)
+- Informasi film, studio, dan waktu tayang
+- Harga tiket
+- Management jadwal (create, update, delete)
 
 ---
 
@@ -1915,10 +1876,5 @@ Projek ini menunjukkan bahwa Rust dapat digunakan secara efektif untuk membangun
 - Cepat & aman pada sistem concurrency yang tinggi
 - Menerapkan paradigma _Functional Programming_ dengan sesuai
 - Memiliki integritas data kuat melalui sistem booking atomic
-
-Ke depannya, fitur projek ini dapat dikembangkan dengan menambah:
-
-- Payment gateway,
-- Notifikasi tiket digital.
 
 ---
