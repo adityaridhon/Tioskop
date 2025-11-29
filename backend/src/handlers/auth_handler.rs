@@ -1,6 +1,14 @@
 use axum::{extract::State, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
+use jsonwebtoken::{EncodingKey, Header};
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct Claims {
+    sub: String,
+    exp: usize,
+}
 
 // Simple password hashing 
 fn hash_password(password: &str) -> String {
@@ -13,15 +21,20 @@ fn hash_password(password: &str) -> String {
 }
 
 // Simple token generation 
-fn generate_token(user_id: i64) -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    
-    let timestamp = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    
-    format!("TOKEN_{}_{}", user_id, timestamp)
+fn generate_token(user_id: i64) -> Result<String, String> {
+    // JWT with simple HMAC secret from env (fallback for dev)
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "tioskop_dev_secret".to_string());
+
+    // token expiry: 24 hours from now
+    let exp = (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
+
+    let claims = Claims {
+        sub: user_id.to_string(),
+        exp,
+    };
+
+    jsonwebtoken::encode(&Header::default(), &claims, &EncodingKey::from_secret(secret.as_bytes()))
+        .map_err(|e| format!("JWT encode error: {}", e))
 }
 
 // Register new user fn
@@ -121,7 +134,10 @@ pub async fn login(
                 cinema_id,
             };
 
-            let token = generate_token(user.id);
+            let token = match generate_token(user.id) {
+                Ok(t) => t,
+                Err(e) => return Json(ApiResponse::error(&format!("Token generation error: {}", e))),
+            };
 
             let login_response = LoginResponse {
                 user: user_info,

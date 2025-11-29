@@ -42,12 +42,35 @@ const handleResponse = async (response) => {
   }
 };
 
+// Helper to get stored token (localStorage preferred, fallback to sessionStorage)
+function getStoredToken() {
+  return localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+}
+
+// Fetch wrapper that automatically attaches Authorization header when token exists
+async function fetchWithAuth(input, init = {}) {
+  const token = getStoredToken();
+  const headers = { ...(init.headers || {}) };
+
+  // If body exists and content-type not provided, default to JSON
+  if (init.body && !headers['Content-Type'] && !headers['content-type']) {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const merged = { ...init, headers };
+  return fetch(input, merged);
+}
+
 // Movies API
 export const moviesAPI = {
   // Get all movies
   getAll: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/movies/all`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/movies/all`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -60,7 +83,7 @@ export const moviesAPI = {
   // Search movies
   search: async (query) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/movies?q=${encodeURIComponent(query)}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/movies?q=${encodeURIComponent(query)}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -73,7 +96,7 @@ export const moviesAPI = {
   // Get movie by ID
   getById: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/movies/${id}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/movies/${id}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -86,7 +109,7 @@ export const moviesAPI = {
   // Create new movie
   create: async (movieData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/movies`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/movies`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -105,7 +128,7 @@ export const moviesAPI = {
   // Update movie
   update: async (id, movieData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/movies/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/movies/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -124,7 +147,7 @@ export const moviesAPI = {
   // Delete movie
   delete: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/movies/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/movies/${id}`, {
         method: 'DELETE',
       });
       return handleResponse(response);
@@ -142,7 +165,7 @@ export const showtimesAPI = {
   // Get all showtimes
   getAll: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/showtimes`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/showtimes`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -155,7 +178,7 @@ export const showtimesAPI = {
   // Get showtimes by date
   getByDate: async (date) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/showtimes?date=${date}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/showtimes?date=${date}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -168,7 +191,7 @@ export const showtimesAPI = {
   // Get showtime by ID
   getById: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/showtimes/${id}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/showtimes/${id}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -181,7 +204,7 @@ export const showtimesAPI = {
   // Create new showtime
   create: async (showtimeData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/showtimes`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/showtimes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -200,7 +223,7 @@ export const showtimesAPI = {
   // Update showtime
   update: async (id, showtimeData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/showtimes/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/showtimes/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +242,7 @@ export const showtimesAPI = {
   // Delete showtime
   delete: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/showtimes/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/showtimes/${id}`, {
         method: 'DELETE',
       });
       return handleResponse(response);
@@ -237,7 +260,7 @@ export const studiosAPI = {
   // Get all studios
   getAll: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/studios`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/studios`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -250,7 +273,7 @@ export const studiosAPI = {
   // Get studio by ID
   getById: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/studios/${id}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/studios/${id}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -263,7 +286,7 @@ export const studiosAPI = {
   // Create new studio
   create: async (studioData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/studios`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/studios`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -282,7 +305,7 @@ export const studiosAPI = {
   // Update studio
   update: async (id, studioData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/studios/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/studios/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -301,7 +324,7 @@ export const studiosAPI = {
   // Delete studio
   delete: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/studios/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/studios/${id}`, {
         method: 'DELETE',
       });
       return handleResponse(response);
@@ -319,7 +342,7 @@ export const bookingsAPI = {
   // Get all bookings
   getAll: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/bookings`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -332,7 +355,7 @@ export const bookingsAPI = {
   // Search bookings by customer name
   search: async (customerName) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings?customer=${encodeURIComponent(customerName)}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/bookings?customer=${encodeURIComponent(customerName)}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -345,7 +368,7 @@ export const bookingsAPI = {
   // Get booking by ID
   getById: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${id}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/bookings/${id}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -358,7 +381,7 @@ export const bookingsAPI = {
   // Create new booking
   create: async (bookingData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/bookings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -377,7 +400,7 @@ export const bookingsAPI = {
   // Update booking status
   updateStatus: async (id, status) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${id}/status`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/bookings/${id}/status`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -396,7 +419,7 @@ export const bookingsAPI = {
   // Delete booking
   delete: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/bookings/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/bookings/${id}`, {
         method: 'DELETE',
       });
       return handleResponse(response);
@@ -414,7 +437,7 @@ export const seatsAPI = {
   // Get seats by showtime
   getByShowtime: async (showtimeId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/seats/showtime/${showtimeId}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/seats/showtime/${showtimeId}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -427,7 +450,7 @@ export const seatsAPI = {
   // Get available seats
   getAvailable: async (showtimeId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/seats/available/${showtimeId}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/seats/available/${showtimeId}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -440,7 +463,7 @@ export const seatsAPI = {
   // Book seats
   book: async (seatIds) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/seats/book`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/seats/book`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -459,7 +482,7 @@ export const seatsAPI = {
   // Release seats
   release: async (seatIds) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/seats/release`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/seats/release`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -481,7 +504,7 @@ export const usersAPI = {
   // Get all users
   getAll: async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/all`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/users/all`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -513,7 +536,7 @@ export const usersAPI = {
   // Get user by ID
   getById: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${id}`);
+      const response = await fetchWithAuth(`${API_BASE_URL}/users/${id}`);
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
@@ -526,7 +549,7 @@ export const usersAPI = {
   // Create new user
   create: async (userData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/users`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,7 +568,7 @@ export const usersAPI = {
   // Update user
   update: async (id, userData) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/users/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -564,12 +587,47 @@ export const usersAPI = {
   // Delete user
   delete: async (id) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+      const response = await fetchWithAuth(`${API_BASE_URL}/users/${id}`, {
         method: 'DELETE',
       });
       return handleResponse(response);
     } catch (err) {
       if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+};
+
+// Auth API (login / register)
+export const authAPI = {
+  login: async (payload) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message && err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  register: async (payload) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message && err.message.includes('fetch')) {
         throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
       }
       throw err;

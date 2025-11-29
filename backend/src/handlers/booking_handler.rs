@@ -1,6 +1,7 @@
 use axum::{extract::{Path, State}, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
+use crate::middleware::auth::AuthUser;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Generate unique booking code - Pure function
@@ -97,11 +98,15 @@ pub async fn get_bookings_by_user(
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
-// Create booking - Functional Programming approach
+// Create booking - Functional Programming approach (Protected with JWT)
 pub async fn create_booking(
+    AuthUser(authenticated_user_id): AuthUser,
     State(pool): State<MySqlPool>,
     Json(payload): Json<CreateBookingRequest>,
 ) -> Json<ApiResponse<BookingDetail>> {
+    // Use authenticated user_id instead of payload.user_id for security
+    let user_id = authenticated_user_id;
+    
     // Validasi: cek apakah seats sudah dibooking
     let seat_ids_str = payload.seat_ids.iter()
         .map(|id| id.to_string())
@@ -150,7 +155,7 @@ pub async fn create_booking(
             let insert_result = sqlx::query(
                 "INSERT INTO bookings (user_id, showtime_id, booking_code, total_price, payment_status) VALUES (?, ?, ?, ?, 'PENDING')"
             )
-            .bind(payload.user_id)
+            .bind(user_id)
             .bind(payload.showtime_id)
             .bind(&booking_code)
             .bind(total_price)
