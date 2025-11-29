@@ -6,6 +6,7 @@ import Movies from '../pages/Movies.vue'
 import Users from '../pages/Users.vue'
 import Loginpages from '../pages/loginpages.vue'
 import Regispage from '../pages/regispage.vue'
+import CinemaSchedule from '../pages/CinemaSchedule.vue'
 
 const routes = [
   // ===== PUBLIC ROUTES =====
