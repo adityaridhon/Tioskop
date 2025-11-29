@@ -475,3 +475,104 @@ export const seatsAPI = {
     }
   },
 };
+
+// Users API
+export const usersAPI = {
+  // Get all users
+  getAll: async () => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/all`);
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  // Login user
+  login: async (loginData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(loginData),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  // Get user by ID
+  getById: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${id}`);
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  // Create new user
+  create: async (userData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  // Update user
+  update: async (id, userData) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(userData),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  // Delete user
+  delete: async (id) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/users/${id}`, {
+        method: 'DELETE',
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+};

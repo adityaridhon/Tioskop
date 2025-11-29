@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { moviesAPI, showtimesAPI, studiosAPI, bookingsAPI, seatsAPI } from '@/services/api';
+import { moviesAPI, showtimesAPI, studiosAPI, bookingsAPI, seatsAPI, usersAPI } from '@/services/api';
 
 /**
  * Composable untuk Movies
@@ -525,5 +525,121 @@ export function useSeats() {
     getAvailable,
     book,
     release,
+  };
+}
+
+/**
+ * Composable untuk Users
+ */
+export function useUsers() {
+  const users = ref([]);
+  const user = ref(null);
+  const loading = ref(false);
+  const error = ref(null);
+
+  const fetchAll = async () => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await usersAPI.getAll();
+      if (response.success) {
+        users.value = response.data;
+      }
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const login = async (loginData) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await usersAPI.login(loginData);
+      if (response.success) {
+        user.value = response.data;
+      }
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const getById = async (id) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await usersAPI.getById(id);
+      if (response.success) {
+        user.value = response.data;
+      }
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const create = async (userData) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await usersAPI.create(userData);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const update = async (id, userData) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await usersAPI.update(id, userData);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const remove = async (id) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const response = await usersAPI.delete(id);
+      return response;
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  return {
+    users,
+    user,
+    loading,
+    error,
+    fetchAll,
+    login,
+    getById,
+    create,
+    update,
+    remove,
   };
 }

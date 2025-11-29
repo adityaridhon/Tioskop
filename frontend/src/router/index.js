@@ -6,7 +6,7 @@ import Movies from '../pages/Movies.vue'
 import Users from '../pages/Users.vue'
 import PemesananFilm from '../components/PemesananFilm.vue'
 import Loginpages from '../pages/loginpages.vue'
-import Regispage from '../pages/regispage.vue'
+import Regispage from '../pages/regispages.vue'
 import CinemaSchedule from '../pages/CinemaSchedule.vue'
 
 const routes = [
@@ -39,6 +39,21 @@ const routes = [
     path: '/admin/users',
     name: 'Users',
     component: Users
+  },
+  {
+    path: '/cinema/:slug',
+    name: 'CinemaSchedule',
+    component: CinemaSchedule
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Loginpages
+  },
+  {
+    path: '/register',
+    name: 'Register',
+    component: Regispage
   }
 ]
 
