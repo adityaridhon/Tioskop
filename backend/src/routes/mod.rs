@@ -4,3 +4,4 @@ pub mod studio_routes;
 pub mod seat_routes;
 pub mod booking_routes;
 pub mod auth_routes;
+// middleware is a top-level module, not under routes

@@ -7,7 +7,7 @@ const { movies, loading, error, fetchAll, create, update, remove } = useMovies()
 
 // ===== Modal State =====
 const showModal = ref(false);
-const modalMode = ref('create'); // 'create' or 'edit'
+const modalMode = ref('create');
 const formData = ref({
   title: '',
   genre: '',

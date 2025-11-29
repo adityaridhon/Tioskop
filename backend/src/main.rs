@@ -2,6 +2,7 @@ mod config;
 mod models;
 mod handlers;
 mod routes;
+mod middleware;
 
 use axum::Router;
 use dotenvy::dotenv;
