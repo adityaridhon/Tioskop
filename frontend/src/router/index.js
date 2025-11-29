@@ -39,6 +39,11 @@ const routes = [
     path: '/admin/users',
     name: 'Users',
     component: Users
+  },
+  {
+    path: '/cinema/:slug',
+    name: 'CinemaSchedule',
+    component: CinemaSchedule
   }
 ]
 
