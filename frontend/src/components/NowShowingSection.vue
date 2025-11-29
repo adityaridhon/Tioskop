@@ -9,53 +9,35 @@ const isDragging = ref(false)
 const startX = ref(0)
 const scrollLeft = ref(0)
 const containerWidth = ref(0)
+const movies = ref([])
+const isLoading = ref(true)
+const error = ref(null)
 
-// ===== Movie Data =====
-const movies = [
-  {
-    id: 1,
-    title: 'Pesugihan Sate Gagak',
-    image: new URL('../assets/film-1.webp', import.meta.url).href
-  },
-  {
-    id: 2,
-    title: 'Pangku',
-    image: new URL('../assets/film-2.webp', import.meta.url).href
-  },
-  {
-    id: 3,
-    title: 'Dopamin',
-    image: new URL('../assets/film-3.webp', import.meta.url).href
-  },
-  {
-    id: 4,
-    title: 'Danyang Wingit Jumat Kliwon',
-    image: new URL('../assets/film-4.webp', import.meta.url).href
-  },
-  {
-    id: 5,
-    title: 'Wicked: For Good',
-    image: new URL('../assets/film-5.webp', import.meta.url).href
-  },
-  {
-    id: 6,
-    title: 'Now You See Me: Now You Dont',
-    image: new URL('../assets/film-6.webp', import.meta.url).href
-  },
-  {
-    id: 7,
-    title: 'The Running Man',
-    image: new URL('../assets/film-7.webp', import.meta.url).href
-  },
-  {
-    id: 8,
-    title: 'Keeper',
-    image: new URL('../assets/film-8.webp', import.meta.url).href
+// ===== Fetch Movies =====
+const fetchMovies = async () => {
+  try {
+    isLoading.value = true
+    const response = await fetch('http://127.0.0.1:3000/api/movies')
+    if (!response.ok) throw new Error('Gagal mengambil data film')
+    
+    const result = await response.json()
+    // Map API data to component format
+    movies.value = (result.data || []).map(movie => ({
+      ...movie,
+      image: movie.poster_url || '/placeholder.jpg'
+    }))
+  } catch (err) {
+    console.error('Error fetching movies:', err)
+    error.value = err.message
+  } finally {
+    isLoading.value = false
   }
-]
+}
 
 const infiniteMovies = computed(() => {
-  return [...movies, ...movies, ...movies]
+  if (movies.value.length === 0) return []
+  // Duplicate movies to create infinite scroll effect
+  return [...movies.value, ...movies.value, ...movies.value]
 })
 
 // ===== Refs =====
@@ -164,11 +146,11 @@ const handleScroll = () => {
 }
 
 const checkInfiniteScroll = () => {
-  if (!carouselRef.value || isDragging.value) return
+  if (!carouselRef.value || isDragging.value || movies.value.length === 0) return
   
   const currentScroll = carouselRef.value.scrollLeft
   const totalCardWidth = cardWidth.value + gapSize.value
-  const oneSetWidth = movies.length * totalCardWidth
+  const oneSetWidth = movies.value.length * totalCardWidth
   
   if (currentScroll >= oneSetWidth * 2 - totalCardWidth) {
     const offset = currentScroll - oneSetWidth
@@ -220,13 +202,14 @@ const updateContainerWidth = () => {
 }
 
 // ===== Lifecycle Hooks =====
-onMounted(() => {
+onMounted(async () => {
+  await fetchMovies()
   updateContainerWidth()
   window.addEventListener('resize', updateContainerWidth)
   
-  if (carouselRef.value) {
+  if (carouselRef.value && movies.value.length > 0) {
     const totalCardWidth = cardWidth.value + gapSize.value
-    const oneSetWidth = movies.length * totalCardWidth
+    const oneSetWidth = movies.value.length * totalCardWidth
     carouselRef.value.scrollLeft = oneSetWidth
     
     carouselRef.value.addEventListener('scroll', handleScroll, { passive: true })
@@ -246,8 +229,19 @@ onMounted(() => {
         </h2>
       </div>
 
+      <!-- ===== Loading State ===== -->
+      <div v-if="isLoading" class="text-center py-12">
+        <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"></div>
+        <p class="mt-4 text-gray-600">Memuat film...</p>
+      </div>
+
+      <!-- ===== Error State ===== -->
+      <div v-else-if="error" class="text-center py-12 text-red-500">
+        {{ error }}
+      </div>
+
       <!-- ===== Carousel Container ===== -->
-      <div ref="containerRef" class="relative">
+      <div v-else ref="containerRef" class="relative">
         
         <!-- ===== Scrollable Movie Grid ===== -->
         <div 
