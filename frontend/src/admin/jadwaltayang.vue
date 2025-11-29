@@ -226,14 +226,14 @@ const closeModal = () => {
 // Handle form submission
 const handleSubmit = async () => {
   try {
-    // Convert datetime-local format to MySQL datetime format
-    const startTime = formData.value.start_time.replace('T', ' ') + ':00';
+    // Keep ISO format expected by backend chrono parser and add seconds
+    const startTime = `${formData.value.start_time}:00`;
     
     const payload = {
-      movie_id: parseInt(formData.value.movie_id),
-      studio_id: parseInt(formData.value.studio_id),
+      movie_id: Number(formData.value.movie_id),
+      studio_id: Number(formData.value.studio_id),
       start_time: startTime,
-      price: formData.value.price.toString()
+      price: Number(formData.value.price)
     };
 
     if (modalMode.value === 'create') {
