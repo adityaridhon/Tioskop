@@ -8,11 +8,20 @@ import Loginpages from '../pages/loginpages.vue'
 import Regispage from '../pages/regispage.vue'
 
 const routes = [
+  // ===== PUBLIC ROUTES =====
   {
     path: '/',
     name: 'Home',
     component: Home
   },
+  {
+    path: '/bioskop/:slug',        
+    name: 'CinemaSchedule',
+    component: CinemaSchedule,
+    props: true
+  },
+
+  // ===== ADMIN ROUTES =====
   {
     path: '/admin',
     name: 'Admin',
