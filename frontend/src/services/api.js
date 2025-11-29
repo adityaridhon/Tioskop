@@ -576,3 +576,38 @@ export const usersAPI = {
     }
   },
 };
+
+// Auth API (login / register)
+export const authAPI = {
+  login: async (payload) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message && err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+
+  register: async (payload) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message && err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
+};
