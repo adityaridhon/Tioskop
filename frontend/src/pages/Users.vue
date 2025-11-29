@@ -2,6 +2,7 @@
   <div class="min-h-screen bg-gray-100">
     <SidebarAdmin />
     
+    <!-- Main Content -->
     <div class="lg:ml-64">
       <UsersComponent />
     </div>
@@ -9,6 +10,6 @@
 </template>
 
 <script setup>
-import SidebarAdmin from '../admin/SidebarAdmin.vue';
-import UsersComponent from '../admin/users.vue';
+import SidebarAdmin from '../components/SidebarAdmin.vue';
+import UsersComponent from '../components/users.vue';
 </script>

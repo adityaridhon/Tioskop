@@ -111,7 +111,7 @@ const handleSearch = async () => {
             class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300"
           >
             <!-- Movie Poster -->
-            <div class="h-64 bg-gradient-to-br from-blue-900 to-blue-950 flex items-center justify-center overflow-hidden">
+            <div class="h-64 bg-linear-to-br from-blue-900 to-blue-950 flex items-center justify-center overflow-hidden">
               <img 
                 v-if="movie.poster_url" 
                 :src="movie.poster_url" 
