@@ -1,5 +1,8 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 // ===== State Management =====
 const isDragging = ref(false)
@@ -59,6 +62,13 @@ const infiniteMovies = computed(() => {
 const carouselRef = ref(null)
 const containerRef = ref(null)
 let scrollTimeout = null
+
+// ===== Navigation Function =====
+const navigateToBooking = (movieId) => {
+  if (!isDragging.value) {
+    router.push({ name: 'PemesananFilm', params: { movieId } })
+  }
+}
 
 // ===== Computed Properties =====
 const cardWidth = computed(() => {
@@ -256,7 +266,10 @@ onMounted(() => {
               class="shrink-0"
               :style="{ width: `${cardWidth}px` }"
             >
-              <div class="group cursor-pointer select-none">
+              <div 
+                class="group cursor-pointer select-none"
+                @click="navigateToBooking(movie.id)"
+              >
                 
                 <!-- ===== Movie Poster ===== -->
                 <div class="relative overflow-hidden rounded-xl sm:rounded-2xl mb-2 sm:mb-3 aspect-2/3 bg-gray-200">

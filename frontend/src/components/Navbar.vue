@@ -6,6 +6,18 @@ const isMenuOpen = ref(false)
 const toggleMenu = () => {
   isMenuOpen.value = !isMenuOpen.value
 }
+
+const scrollToSearch = () => {
+  const searchSection = document.getElementById('search-section')
+  if (searchSection) {
+    searchSection.scrollIntoView({ 
+      behavior: 'smooth',
+      block: 'start'
+    })
+    // Close mobile menu if open
+    isMenuOpen.value = false
+  }
+}
 </script>
 
 <template>
@@ -26,7 +38,7 @@ const toggleMenu = () => {
 
         <!-- Desktop Menu -->
         <div class="hidden md:flex items-center space-x-8">
-          <a href="#" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300">Cari Film</a>
+          <a @click.prevent="scrollToSearch" href="#search-section" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300 cursor-pointer">Cari Film</a>
           <a href="#" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300">Now Showing</a>
           <a href="#" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300">Bioskop</a>
           <a href="#" class="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg transition duration-300">
@@ -51,7 +63,7 @@ const toggleMenu = () => {
       <!-- Mobile Menu -->
       <div v-if="isMenuOpen" class="md:hidden pb-4">
         <div class="flex flex-col space-y-3">
-          <a href="#" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300">Cari Film</a>
+          <a @click.prevent="scrollToSearch" href="#search-section" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300 cursor-pointer">Cari Film</a>
           <a href="#" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300">Now Showing</a>
           <a href="#" class="text-gray-800 hover:text-blue-600 font-medium transition duration-300">Bioskop</a>
           <a href="#" class="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-medium rounded-lg transition duration-300">

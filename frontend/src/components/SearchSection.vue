@@ -1,5 +1,8 @@
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const searchQuery = ref('')
 const movies = ref([])
@@ -24,7 +27,8 @@ const handleSearch = async () => {
       throw new Error('Gagal mengambil data film')
     }
     
-    movies.value = await response.json()
+    const result = await response.json()
+    movies.value = result.data || []
   } catch (err) {
     error.value = err.message
     console.error('Error fetching movies:', err)
@@ -32,10 +36,14 @@ const handleSearch = async () => {
     isLoading.value = false
   }
 }
+
+const navigateToBooking = (movieId) => {
+  router.push({ name: 'PemesananFilm', params: { movieId } })
+}
 </script>
 
 <template>
-  <section class="py-12 sm:py-16 md:py-20 bg-gray-50">
+  <section id="search-section" class="py-12 sm:py-16 md:py-20 bg-gray-50">
     <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
       <!-- Section Header -->
       <div class="text-center mb-8 sm:mb-10 md:mb-12">
@@ -108,7 +116,8 @@ const handleSearch = async () => {
           <div 
             v-for="movie in movies" 
             :key="movie.id"
-            class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300"
+            class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
+            @click="navigateToBooking(movie.id)"
           >
             <!-- Movie Poster -->
             <div class="h-64 bg-linear-to-br from-blue-900 to-blue-950 flex items-center justify-center overflow-hidden">
