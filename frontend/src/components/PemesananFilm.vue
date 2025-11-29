@@ -3,6 +3,14 @@
         <!-- Header Section -->
         <div class="bg-[#143C8C] text-white py-8 px-6 rounded-b-2xl shadow-lg">
             <div class="max-w-7xl mx-auto">
+                <button 
+                    @click="goBack" 
+                    class="flex items-center gap-2 text-blue-200 hover:text-white mb-6 transition-colors group"
+                >
+                    <ArrowLeft class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
+                    <span class="font-medium">Kembali</span>
+                </button>
+
                 <div class="flex items-center gap-4">
                     <div class="bg-white/10 p-3 rounded-xl">
                         <Film class="w-8 h-8" />
@@ -343,8 +351,9 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
-import { useRoute } from "vue-router";
+import { useRoute, useRouter } from "vue-router";
 import {
+    ArrowLeft,
     Film,
     Calendar,
     Clock,
@@ -355,6 +364,11 @@ import {
 } from "lucide-vue-next"; // atau ganti dengan ikon lain yang kamu pakai
 
 const route = useRoute();
+const router = useRouter();
+
+const goBack = () => {
+    router.back();
+};
 
 // Data film (akan diambil dari API)
 interface Movie {

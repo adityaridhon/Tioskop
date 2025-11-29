@@ -8,6 +8,7 @@ import BioskopSection from '../components/BioskopSection.vue'
 
 <template>
   <main>
+    <Navbar />
     <HeroSection />
     <SearchSection />
     <NowShowingSection />
