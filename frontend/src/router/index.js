@@ -5,6 +5,9 @@ import JadwalTayang from '../pages/JadwalTayang.vue'
 import Movies from '../pages/Movies.vue'
 import Users from '../pages/Users.vue'
 import PemesananFilm from '../components/PemesananFilm.vue'
+import Loginpages from '../pages/loginpages.vue'
+import Regispage from '../pages/regispage.vue'
+import CinemaSchedule from '../pages/CinemaSchedule.vue'
 
 const routes = [
   {
