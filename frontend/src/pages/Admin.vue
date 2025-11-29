@@ -1,7 +1,7 @@
 <script setup>
-import SidebarAdmin from '../admin/SidebarAdmin.vue';
-import NavbarAdmin from '../admin/NavbarAdmin.vue';
-import DashboardContent from '../admin/DashboardContent.vue';
+import SidebarAdmin from '../components/SidebarAdmin.vue';
+import NavbarAdmin from '../components/NavbarAdmin.vue';
+import DashboardContent from '../components/DashboardContent.vue';
 </script>
 
 <template>
