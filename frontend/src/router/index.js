@@ -4,12 +4,18 @@ import Admin from '../pages/Admin.vue'
 import JadwalTayang from '../pages/JadwalTayang.vue'
 import Movies from '../pages/Movies.vue'
 import Users from '../pages/Users.vue'
+import PemesananFilm from '../components/PemesananFilm.vue'
 
 const routes = [
   {
     path: '/',
     name: 'Home',
     component: Home
+  },
+  {
+    path: '/pemesanan/:movieId',
+    name: 'PemesananFilm',
+    component: PemesananFilm
   },
   {
     path: '/admin',
