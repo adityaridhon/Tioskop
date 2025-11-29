@@ -1,25 +1,14 @@
-<script setup>
-import SidebarAdmin from '../admin/SidebarAdmin.vue';
-import NavbarAdmin from '../admin/NavbarAdmin.vue';
-import UsersComponent from '../admin/users.vue';
-</script>
-
-<template>
-  <div class="min-h-screen bg-gray-200">
+﻿<template>
+  <div class="min-h-screen bg-gray-100">
     <SidebarAdmin />
     
-    <main class="w-full md:w-[calc(100%-256px)] md:ml-64 bg-gray-200 min-h-screen transition-all main">
-      <NavbarAdmin />
+    <div class="lg:ml-64">
       <UsersComponent />
-    </main>
+    </div>
   </div>
 </template>
 
-<style scoped>
-@media (min-width: 768px) {
-  .main.active {
-    margin-left: 0px;
-    width: 100%;
-  }
-}
-</style>
+<script setup>
+import SidebarAdmin from '../admin/SidebarAdmin.vue';
+import UsersComponent from '../admin/users.vue';
+</script>

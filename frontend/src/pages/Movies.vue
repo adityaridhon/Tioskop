@@ -1,7 +1,7 @@
-<script setup>
-import SidebarAdmin from '../components/SidebarAdmin.vue'
-import NavbarAdmin from '../components/NavbarAdmin.vue'
-import ListFilm from '../components/listfilm.vue'
+﻿<script setup>
+import SidebarAdmin from '../admin/SidebarAdmin.vue'
+import NavbarAdmin from '../admin/NavbarAdmin.vue'
+import ListFilm from '../admin/listfilm.vue'
 </script>
 
 <template>
