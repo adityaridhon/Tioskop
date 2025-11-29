@@ -75,8 +75,14 @@ pub async fn update_showtime(
         Ok(Some(existing_showtime)) => {
             let updated_movie_id = payload.movie_id.or(existing_showtime.movie_id);
             let updated_studio_id = payload.studio_id.or(existing_showtime.studio_id);
-            let updated_start_time = payload.start_time.or(existing_showtime.start_time);
-            let updated_price = payload.price.or(existing_showtime.price);
+            
+            // Convert existing values to String if payload is None
+            let updated_start_time = payload.start_time.or_else(|| {
+                existing_showtime.start_time.map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
+            });
+            let updated_price = payload.price.or_else(|| {
+                existing_showtime.price.map(|p| p.to_string())
+            });
 
             sqlx::query(
                 "UPDATE showtimes SET movie_id = ?, studio_id = ?, start_time = ?, price = ? WHERE id = ?"

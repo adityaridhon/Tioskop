@@ -202,18 +202,19 @@ onMounted(() => {
     <!-- Modal Form -->
     <div 
       v-if="showModal" 
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-      @click.self="closeModal"
+      @click="closeModal"
+      class="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
     >
-      <div class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div @click.stop class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slideUp">
         <!-- Modal Header -->
-        <div class="flex items-center justify-between p-6 border-b">
-          <h2 class="text-2xl font-bold text-gray-900">
+        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center rounded-t-xl">
+          <h2 class="text-xl font-bold text-white flex items-center gap-2">
+            <i class="bx bx-movie-play text-2xl"></i>
             {{ modalMode === 'create' ? 'Tambah Film Baru' : 'Edit Film' }}
           </h2>
           <button 
             @click="closeModal"
-            class="text-gray-400 hover:text-gray-600 transition"
+            class="text-white/80 hover:text-white transition-colors"
           >
             <i class="bx bx-x text-3xl"></i>
           </button>
@@ -329,8 +330,9 @@ onMounted(() => {
             </button>
             <button 
               type="submit"
-              class="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition"
+              class="flex-1 px-4 py-2 bg-blue-900 hover:bg-blue-800 text-white rounded-lg transition flex items-center justify-center gap-2"
             >
+              <i class="bx bx-save"></i>
               {{ modalMode === 'create' ? 'Tambah Film' : 'Simpan Perubahan' }}
             </button>
           </div>
@@ -341,6 +343,21 @@ onMounted(() => {
 </template>
 
 <style scoped>
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
 .line-clamp-2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
