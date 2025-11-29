@@ -111,7 +111,7 @@ onMounted(() => {
         <!-- Add Movie Button -->
         <button 
           @click="openCreateModal"
-          class="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition shadow-lg hover:shadow-xl"
+          class="bg-blue-900 hover:bg-blue-800 text-white font-semibold px-6 py-3 rounded-lg flex items-center gap-2 transition shadow-lg hover:shadow-xl"
         >
           <i class="bx bx-plus text-2xl"></i>
           <span>Tambah Film</span>
@@ -207,7 +207,7 @@ onMounted(() => {
     >
       <div @click.stop class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slideUp">
         <!-- Modal Header -->
-        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center rounded-t-xl">
+        <div class="sticky top-0 bg-blue-900 px-6 py-4 flex justify-between items-center rounded-t-xl">
           <h2 class="text-xl font-bold text-white flex items-center gap-2">
             <i class="bx bx-movie-play text-2xl"></i>
             {{ modalMode === 'create' ? 'Tambah Film Baru' : 'Edit Film' }}

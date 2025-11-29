@@ -1,44 +1,33 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
-// TODO: Create useUsers composable when backend endpoint is ready
-// import { useUsers } from '@/composables/useApi';
+import { ref } from 'vue';
 
 // Search query
 const searchQuery = ref('');
 
-// TODO: Replace with API data when backend endpoint is ready
-// const { users: usersData, loading, error, fetchAll } = useUsers();
-
-// Sample user data (will be replaced with real data from backend)
+// Sample user data
 const users = ref([
-  { id: 1, name: 'admin', email: 'admin@tioskop.com', role: 'admin', created_at: '2025-11-26 10:44:27' },
-  { id: 2, name: 'Adit', email: 'adit@gmail.com', role: 'customer', created_at: '2025-11-26 10:46:38' },
+  { id: 1, name: 'Budi Santoso', email: 'budi@example.com', phone: '+62 812 3456 7890', joinDate: '15 Juni 2023' },
+  { id: 2, name: 'Siti Nurhaliza', email: 'siti@example.com', phone: '+62 813 2345 6789', joinDate: '22 Mei 2023' },
+  { id: 3, name: 'Andi Wijaya', email: 'andi@example.com', phone: '+62 821 9876 5432', joinDate: '3 Juli 2023' },
+  { id: 4, name: 'Dewi Lestari', email: 'dewi@example.com', phone: '+62 856 1234 5678', joinDate: '18 Agustus 2023' },
+  { id: 5, name: 'Rijal Verdiansyah', email: 'rijal@example.com', phone: '+62 877 9988 7766', joinDate: '5 April 2023' },
+  { id: 6, name: 'Nia Ramadhani', email: 'nia@example.com', phone: '+62 858 5544 3322', joinDate: '12 Maret 2023' },
+  { id: 7, name: 'Eko Prasetyo', email: 'eko@example.com', phone: '+62 822 1122 3344', joinDate: '28 Februari 2023' },
+  { id: 8, name: 'Maya Sari', email: 'maya@example.com', phone: '+62 811 6677 8899', joinDate: '7 Januari 2023' },
+  { id: 9, name: 'Hendra Gunawan', email: 'hendra@example.com', phone: '+62 819 4455 6677', joinDate: '19 September 2023' },
+  { id: 10, name: 'Fitri Handayani', email: 'fitri@example.com', phone: '+62 857 3366 9988', joinDate: '14 Oktober 2023' },
 ]);
 
 // Computed filtered users
-const filteredUsers = computed(() => {
+const filteredUsers = () => {
   if (!searchQuery.value) return users.value;
   const query = searchQuery.value.toLowerCase();
   return users.value.filter(user => 
     user.name.toLowerCase().includes(query) ||
-    user.email.toLowerCase().includes(query)
+    user.email.toLowerCase().includes(query) ||
+    user.phone.includes(query)
   );
-});
-
-// Format date
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('id-ID', { 
-    day: 'numeric', 
-    month: 'long', 
-    year: 'numeric' 
-  });
 };
-
-// TODO: Add CRUD functions when backend is ready
-// onMounted(async () => {
-//   await fetchAll();
-// });
 </script>
 
 <template>
@@ -75,15 +64,18 @@ const formatDate = (dateString) => {
                 Email
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Role
+                Nomor Telepon
               </th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Tanggal Bergabung
               </th>
+              <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Aksi
+              </th>
             </tr>
           </thead>
           <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="user in filteredUsers" :key="user.id" class="hover:bg-gray-50 transition-colors">
+            <tr v-for="user in filteredUsers()" :key="user.id" class="hover:bg-gray-50 transition-colors">
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center">
                   <i class="bx bx-user-circle text-3xl text-gray-400 mr-3"></i>
@@ -97,18 +89,21 @@ const formatDate = (dateString) => {
                 </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="[
-                  'inline-block px-2 py-1 text-xs font-medium rounded-full',
-                  user.role === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
-                ]">
-                  {{ user.role }}
-                </span>
+                <div class="flex items-center text-sm text-gray-600">
+                  <i class="bx bx-phone text-lg mr-2"></i>
+                  {{ user.phone }}
+                </div>
               </td>
               <td class="px-6 py-4 whitespace-nowrap">
                 <div class="flex items-center text-sm text-gray-600">
                   <i class="bx bx-calendar text-lg mr-2"></i>
-                  {{ formatDate(user.created_at) }}
+                  {{ user.joinDate }}
                 </div>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-sm">
+                <button class="text-blue-600 hover:text-blue-800 font-medium">
+                  Edit
+                </button>
               </td>
             </tr>
           </tbody>
@@ -124,7 +119,7 @@ const formatDate = (dateString) => {
           <button class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             Sebelumnya
           </button>
-          <button class="px-3 py-1.5 text-sm bg-blue-900 text-white rounded hover:bg-blue-800 transition-colors">
+          <button class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
             1
           </button>
           <button class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 transition-colors">

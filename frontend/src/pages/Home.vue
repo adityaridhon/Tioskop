@@ -1,18 +1,16 @@
-<script setup>
+﻿<script setup>
 import Navbar from '../components/Navbar.vue'
 import HeroSection from '../components/HeroSection.vue'
-import SearchSection from '../components/SearchSection.vue'
 import NowShowingSection from '../components/NowShowingSection.vue'
+import SearchSection from '../components/SearchSection.vue'
+import BioskopSection from '../components/BioskopSection.vue'
 </script>
 
 <template>
-  <div>
-    <Navbar />
+  <main>
     <HeroSection />
     <SearchSection />
     <NowShowingSection />
-  </div>
+    <BioskopSection />
+  </main>
 </template>
-
-<style scoped>
-</style>

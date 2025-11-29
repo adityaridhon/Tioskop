@@ -3,7 +3,7 @@ use sqlx::MySqlPool;
 use crate::models::*;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-// Generate unique booking code 
+// Generate unique booking code - Pure function
 fn generate_booking_code() -> String {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -12,7 +12,7 @@ fn generate_booking_code() -> String {
     format!("BK{}", timestamp)
 }
 
-// Get all bookings 
+// Get all bookings - Functional Programming approach
 pub async fn get_all_bookings(
     State(pool): State<MySqlPool>,
 ) -> Json<ApiResponse<Vec<Booking>>> {
@@ -25,11 +25,12 @@ pub async fn get_all_bookings(
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
-// Get booking by ID 
+// Get booking by ID dengan detail seats - Functional Programming approach
 pub async fn get_booking_by_id(
     State(pool): State<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<BookingDetail>> {
+    // Fetch booking
     let booking_result = sqlx::query_as::<_, Booking>(
         "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
     )
@@ -39,6 +40,7 @@ pub async fn get_booking_by_id(
 
     match booking_result {
         Ok(Some(booking)) => {
+            // Fetch booking seats dengan functional approach
             let seats_result = sqlx::query_as::<_, (i64, String, Option<rust_decimal::Decimal>)>(
                 "SELECT bs.seat_id, s.seat_code, bs.price 
                 FROM booking_seats bs 
@@ -80,7 +82,7 @@ pub async fn get_booking_by_id(
     }
 }
 
-// Get bookings by user_id 
+// Get bookings by user_id - Functional Programming approach
 pub async fn get_bookings_by_user(
     State(pool): State<MySqlPool>,
     Path(user_id): Path<i64>,
@@ -95,11 +97,12 @@ pub async fn get_bookings_by_user(
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
-// Create booking 
+// Create booking - Functional Programming approach
 pub async fn create_booking(
     State(pool): State<MySqlPool>,
     Json(payload): Json<CreateBookingRequest>,
 ) -> Json<ApiResponse<BookingDetail>> {
+    // Validasi: cek apakah seats sudah dibooking
     let seat_ids_str = payload.seat_ids.iter()
         .map(|id| id.to_string())
         .collect::<Vec<_>>()
@@ -129,6 +132,7 @@ pub async fn create_booking(
         _ => {}
     }
 
+    // Ambil harga showtime
     let price_result = sqlx::query_scalar::<_, rust_decimal::Decimal>(
         "SELECT price FROM showtimes WHERE id = ?"
     )
@@ -138,9 +142,11 @@ pub async fn create_booking(
 
     match price_result {
         Ok(Some(price)) => {
+            // Calculate total price dengan functional approach
             let total_price = price * rust_decimal::Decimal::from(payload.seat_ids.len() as i32);
             let booking_code = generate_booking_code();
 
+            // Insert booking
             let insert_result = sqlx::query(
                 "INSERT INTO bookings (user_id, showtime_id, booking_code, total_price, payment_status) VALUES (?, ?, ?, ?, 'PENDING')"
             )
@@ -155,6 +161,7 @@ pub async fn create_booking(
                 Ok(result) => {
                     let booking_id = result.last_insert_id() as i64;
 
+                    // Insert booking_seats dengan functional approach
                     let seats_insert_futures = payload.seat_ids.iter()
                         .map(|seat_id| {
                             sqlx::query(
@@ -166,10 +173,12 @@ pub async fn create_booking(
                             .execute(&pool)
                         });
 
+                    // Execute all inserts
                     for future in seats_insert_futures {
                         future.await.ok();
                     }
 
+                    // Update seat status menjadi 'booked' dengan functional approach
                     for seat_id in payload.seat_ids.iter() {
                         sqlx::query(
                             "UPDATE seats SET seat_status = 'booked' WHERE id = ?"
@@ -180,6 +189,7 @@ pub async fn create_booking(
                         .ok();
                     }
 
+                    // Fetch created booking dengan seats
                     let booking_detail_result = sqlx::query_as::<_, Booking>(
                         "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
                     )
@@ -233,17 +243,19 @@ pub async fn create_booking(
     }
 }
 
-// Update payment status 
+// Update payment status - Functional Programming approach
 pub async fn update_payment_status(
     State(pool): State<MySqlPool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePaymentStatusRequest>,
 ) -> Json<ApiResponse<Booking>> {
+    // Validasi payment status
     let valid_statuses = vec!["PENDING", "PAID", "CANCELLED"];
     if !valid_statuses.contains(&payload.payment_status.as_str()) {
         return Json(ApiResponse::error("Status payment tidak valid. Harus PENDING, PAID, atau CANCELLED"));
     }
 
+    // Update status
     let update_result = sqlx::query(
         "UPDATE bookings SET payment_status = ? WHERE id = ?"
     )
@@ -254,6 +266,7 @@ pub async fn update_payment_status(
 
     match update_result {
         Ok(result) if result.rows_affected() > 0 => {
+            // Fetch updated booking
             sqlx::query_as::<_, Booking>(
                 "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
             )
@@ -268,11 +281,12 @@ pub async fn update_payment_status(
     }
 }
 
-// Cancel booking 
+// Cancel booking - Functional Programming approach
 pub async fn cancel_booking(
     State(pool): State<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<Booking>> {
+    // Get seat IDs sebelum cancel untuk kembalikan status
     let seats_result = sqlx::query_scalar::<_, i64>(
         "SELECT seat_id FROM booking_seats WHERE booking_id = ?"
     )
@@ -280,7 +294,7 @@ pub async fn cancel_booking(
     .fetch_all(&pool)
     .await;
 
-
+    // Update status ke CANCELLED
     let update_result = sqlx::query(
         "UPDATE bookings SET payment_status = 'CANCELLED' WHERE id = ?"
     )
@@ -290,6 +304,7 @@ pub async fn cancel_booking(
 
     match update_result {
         Ok(result) if result.rows_affected() > 0 => {
+            // Kembalikan status kursi menjadi 'available'
             if let Ok(seat_ids) = seats_result {
                 for seat_id in seat_ids.iter() {
                     sqlx::query(

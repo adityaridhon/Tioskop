@@ -390,7 +390,7 @@ const handleDelete = async (scheduleId, movieTitle) => {
             <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
               <button 
                 @click="openEditModal(schedule)"
-                class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition shadow-md"
+                class="bg-blue-900 hover:bg-blue-800 text-white p-2 rounded-lg transition shadow-md"
                 title="Edit Jadwal"
               >
                 <i class="bx bx-edit text-lg"></i>
@@ -472,7 +472,7 @@ const handleDelete = async (scheduleId, movieTitle) => {
                 <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
                   <button 
                     @click="openEditModal(schedule)"
-                    class="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition shadow-md"
+                    class="bg-blue-900 hover:bg-blue-800 text-white p-2 rounded-lg transition shadow-md"
                     title="Edit Jadwal"
                   >
                     <i class="bx bx-edit text-lg"></i>
@@ -537,7 +537,7 @@ const handleDelete = async (scheduleId, movieTitle) => {
     <div v-if="showModal" @click="closeModal" class="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div @click.stop class="bg-white rounded-xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto animate-slideUp">
         <!-- Modal Header -->
-        <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center rounded-t-xl">
+        <div class="bg-blue-900 px-6 py-4 flex justify-between items-center rounded-t-xl">
           <h3 class="text-xl font-bold text-white flex items-center gap-2">
             <i class="bx bx-calendar-star text-2xl"></i>
             {{ modalMode === 'create' ? 'Tambah Jadwal Baru' : 'Edit Jadwal' }}
@@ -615,7 +615,7 @@ const handleDelete = async (scheduleId, movieTitle) => {
             </button>
             <button
               type="submit"
-              class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2"
+              class="flex-1 px-4 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition flex items-center justify-center gap-2"
             >
               <i class="bx bx-save"></i>
               {{ modalMode === 'create' ? 'Tambah' : 'Simpan' }}
