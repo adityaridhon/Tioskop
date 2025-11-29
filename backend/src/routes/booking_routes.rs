@@ -9,4 +9,5 @@ pub fn booking_routes() -> Router<MySqlPool> {
         .route("/api/bookings/user/{user_id}", get(get_bookings_by_user))
         .route("/api/bookings/{id}/payment", put(update_payment_status))
         .route("/api/bookings/{id}/cancel", put(cancel_booking))
+        .route("/api/bookings/showtime/{showtime_id}/seats", get(get_booked_seats_by_showtime))
 }
