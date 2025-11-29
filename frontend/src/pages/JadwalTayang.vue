@@ -1,7 +1,7 @@
-<script setup>
-import SidebarAdmin from '../components/SidebarAdmin.vue'
-import NavbarAdmin from '../components/NavbarAdmin.vue'
-import JadwalTayang from '../components/jadwaltayang.vue'
+﻿<script setup>
+import SidebarAdmin from '../admin/SidebarAdmin.vue'
+import NavbarAdmin from '../admin/NavbarAdmin.vue'
+import JadwalTayang from '../admin/jadwaltayang.vue'
 </script>
 
 <template>
