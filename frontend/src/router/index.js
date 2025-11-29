@@ -4,7 +4,8 @@ import Admin from '../pages/Admin.vue'
 import JadwalTayang from '../pages/JadwalTayang.vue'
 import Movies from '../pages/Movies.vue'
 import Users from '../pages/Users.vue'
-import CinemaSchedule from '../pages/CinemaSchedule.vue' // ✅ page bioskop
+import Loginpages from '../pages/loginpages.vue'
+import Regispage from '../pages/regispage.vue'
 
 const routes = [
   // ===== PUBLIC ROUTES =====
@@ -40,6 +41,16 @@ const routes = [
     path: '/admin/users',
     name: 'Users',
     component: Users
+  },
+  {
+    path: '/loginpages',
+    name: 'Loginpages',
+    component: Loginpages
+  },
+  {
+    path: '/regispage',
+    name: 'Regispage',
+    component: Regispage
   }
 ]
 

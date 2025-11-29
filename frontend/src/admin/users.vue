@@ -124,7 +124,7 @@ const formatDate = (dateString) => {
           <button class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
             Sebelumnya
           </button>
-          <button class="px-3 py-1.5 text-sm bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors">
+          <button class="px-3 py-1.5 text-sm bg-blue-900 text-white rounded hover:bg-blue-800 transition-colors">
             1
           </button>
           <button class="px-3 py-1.5 text-sm border border-gray-300 rounded hover:bg-gray-100 transition-colors">
