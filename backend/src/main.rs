@@ -7,7 +7,14 @@ use axum::Router;
 use dotenvy::dotenv;
 use std::net::SocketAddr;
 use tower_http::cors::{Any, CorsLayer};
-use routes::{movie_routes::movie_routes, showtime_routes::showtime_routes, studio_routes::studio_routes, seat_routes::seat_routes, booking_routes::booking_routes};
+use routes::{
+    movie_routes::movie_routes, 
+    showtime_routes::showtime_routes, 
+    studio_routes::studio_routes, 
+    seat_routes::seat_routes, 
+    booking_routes::booking_routes,
+    auth_routes::auth_routes
+};
 
 #[tokio::main]
 async fn main() {
@@ -25,6 +32,7 @@ async fn main() {
 
     // Build dengan routes
     let app = Router::new()
+        .merge(auth_routes())
         .merge(movie_routes())
         .merge(showtime_routes())
         .merge(studio_routes())
