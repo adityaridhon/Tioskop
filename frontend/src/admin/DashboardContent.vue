@@ -311,7 +311,7 @@ onMounted(async () => {
     <!-- Modal Form Tambah Film -->
     <div v-if="showMovieModal" @click="closeMovieModal" class="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div @click.stop class="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto animate-slideUp">
-        <div class="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center rounded-t-xl">
+        <div class="sticky top-0 bg-blue-900 px-6 py-4 flex justify-between items-center rounded-t-xl">
           <h3 class="text-xl font-bold text-white flex items-center gap-2">
             <i class="bx bx-movie-play text-2xl"></i>
             Tambah Film Baru
@@ -373,7 +373,7 @@ onMounted(async () => {
               Batal
             </button>
             <button type="submit"
-              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+              class="px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2">
               <i class="bx bx-save"></i>
               Simpan Film
             </button>
@@ -385,7 +385,7 @@ onMounted(async () => {
     <!-- Modal Form Tambah Jadwal -->
     <div v-if="showScheduleModal" @click="closeScheduleModal" class="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div @click.stop class="bg-white rounded-xl shadow-2xl max-w-lg w-full animate-slideUp">
-        <div class="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4 flex justify-between items-center rounded-t-xl">
+        <div class="bg-blue-900 px-6 py-4 flex justify-between items-center rounded-t-xl">
           <h3 class="text-xl font-bold text-white flex items-center gap-2">
             <i class="bx bx-calendar-star text-2xl"></i>
             Tambah Jadwal Tayang
@@ -433,7 +433,7 @@ onMounted(async () => {
               Batal
             </button>
             <button type="submit"
-              class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2">
+              class="px-6 py-2 bg-blue-900 text-white rounded-lg hover:bg-blue-800 transition-colors flex items-center gap-2">
               <i class="bx bx-save"></i>
               Simpan Jadwal
             </button>
