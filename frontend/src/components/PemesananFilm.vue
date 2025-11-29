@@ -121,7 +121,7 @@
                             </div>
                             <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
                                 <button
-                                    v-for="time in showtimes"
+                                    v-for="time in availableTimes"
                                     :key="time"
                                     @click="selectedTime = time"
                                     class="py-3 px-4 rounded-lg transition-all duration-200"
@@ -326,6 +326,7 @@
 
                                 <!-- Action Button -->
                                 <button
+                                    @click="handleConfirm"
                                     :disabled="!canConfirm"
                                     class="w-full bg-[#143C8C] text-white py-3 rounded-lg mt-6 transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-[#0f2d6b] disabled:hover:bg-gray-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                                 >
@@ -350,7 +351,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
     ArrowLeft,
@@ -428,6 +429,7 @@ const fetchMovieData = async () => {
 // Load movie data saat component mounted
 onMounted(() => {
     fetchMovieData();
+    fetchShowtimes(parseInt(route.params.movieId as string));
 });
 
 const selectedDate = ref<string | null>(null);
@@ -435,33 +437,110 @@ const selectedTime = ref<string | null>(null);
 const selectedSeats = ref<string[]>([]);
 
 // Data untuk schedule
-const dates = [
-    { date: "28 Nov", day: "Jum", full: "2025-11-28" },
-    { date: "29 Nov", day: "Sab", full: "2025-11-29" },
-    { date: "30 Nov", day: "Min", full: "2025-11-30" },
-    { date: "1 Des", day: "Sen", full: "2025-12-01" },
-    { date: "2 Des", day: "Sel", full: "2025-12-02" },
-    { date: "3 Des", day: "Rab", full: "2025-12-03" },
-];
+// Data untuk schedule
+const dates = computed(() => {
+    if (!showtimeList.value.length) return [];
+    
+    const uniqueDates = new Set();
+    const result: any[] = [];
+    
+    showtimeList.value.forEach(st => {
+        const dateObj = new Date(st.start_time);
+        const fullDate = dateObj.toISOString().split('T')[0];
+        
+        if (!uniqueDates.has(fullDate)) {
+            uniqueDates.add(fullDate);
+            const dayName = dateObj.toLocaleDateString('id-ID', { weekday: 'short' });
+            const dateStr = dateObj.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' });
+            
+            result.push({
+                date: dateStr,
+                day: dayName,
+                full: fullDate
+            });
+        }
+    });
+    
+    return result.sort((a, b) => a.full.localeCompare(b.full));
+});
 
-const showtimes = ["10:00", "12:30", "14:45", "17:00", "19:30", "21:45"];
+const availableTimes = computed(() => {
+    if (!selectedDate.value || !showtimeList.value.length) return [];
+    
+    return showtimeList.value
+        .filter(st => {
+            const dateObj = new Date(st.start_time);
+            const fullDate = dateObj.toISOString().split('T')[0];
+            return fullDate === selectedDate.value;
+        })
+        .map(st => {
+            const dateObj = new Date(st.start_time);
+            return dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+        })
+        .sort();
+});
+
+watch([selectedDate, selectedTime], async ([newDate, newTime]) => {
+    if (newDate && newTime) {
+        const showtime = showtimeList.value.find(st => {
+            const dateObj = new Date(st.start_time);
+            const dateStr = dateObj.toISOString().split('T')[0];
+            const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace('.', ':');
+            return dateStr === newDate && timeStr === newTime;
+        });
+        
+        if (showtime) {
+            selectedShowtime.value = showtime;
+            await fetchSeats(showtime.id);
+        } else {
+            selectedShowtime.value = null;
+            occupiedSeats.value = [];
+            allSeats.value = [];
+        }
+    } else {
+        selectedShowtime.value = null;
+        occupiedSeats.value = [];
+        allSeats.value = [];
+    }
+});
 
 // Data kursi
 const rows = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const seatsPerRow = 10;
-const occupiedSeats = [
-    "A5",
-    "A6",
-    "B3",
-    "B7",
-    "C4",
-    "C5",
-    "C6",
-    "D8",
-    "E2",
-    "E9",
-    "F5",
-];
+const occupiedSeats = ref<string[]>([]);
+const allSeats = ref<any[]>([]);
+const selectedShowtime = ref<any>(null);
+
+// Fetch seats for showtime
+const fetchSeats = async (showtimeId: number) => {
+    try {
+        const response = await fetch(`http://127.0.0.1:3000/api/seats/showtime/${showtimeId}`);
+        const result = await response.json();
+        if (result.success) {
+            allSeats.value = result.data;
+            // Update occupied seats
+            occupiedSeats.value = result.data
+                .filter((seat: any) => seat.is_booked)
+                .map((seat: any) => seat.seat_code);
+        }
+    } catch (err) {
+        console.error('Error fetching seats:', err);
+    }
+};
+
+// Fetch showtimes
+const showtimeList = ref<any[]>([]);
+const fetchShowtimes = async (movieId: number) => {
+    try {
+        const response = await fetch(`http://127.0.0.1:3000/api/showtimes/movie/${movieId}`);
+        const result = await response.json();
+        if (result.success) {
+            showtimeList.value = result.data;
+        }
+    } catch (err) {
+        console.error('Error fetching showtimes:', err);
+    }
+};
 
 // Pricing
 const TICKET_PRICE = 45000;
@@ -477,7 +556,7 @@ const sortedSeats = computed(() =>
 );
 
 const toggleSeat = (seatId: string) => {
-    if (occupiedSeats.includes(seatId)) return;
+    if (occupiedSeats.value.includes(seatId)) return;
 
     if (selectedSeats.value.includes(seatId)) {
         selectedSeats.value = selectedSeats.value.filter(
@@ -489,7 +568,7 @@ const toggleSeat = (seatId: string) => {
 };
 
 const getSeatStatus = (seatId: string) => {
-    if (occupiedSeats.includes(seatId)) return "occupied";
+    if (occupiedSeats.value.includes(seatId)) return "occupied";
     if (selectedSeats.value.includes(seatId)) return "selected";
     return "available";
 };
@@ -528,11 +607,73 @@ const formatCurrency = (amount: number) =>
         minimumFractionDigits: 0,
     }).format(amount);
 
+const handleConfirm = async () => {
+    if (!canConfirm.value || !selectedShowtime.value) return;
+    
+    // Debug
+    if (allSeats.value.length === 0) {
+        alert(`Debug: Data kursi kosong. Showtime ID: ${selectedShowtime.value.id}`);
+        // Try to fetch again?
+        await fetchSeats(selectedShowtime.value.id);
+        if (allSeats.value.length === 0) {
+            alert('Gagal memuat data kursi. Silakan refresh halaman.');
+            return;
+        }
+    }
+    
+    // Map selected seat codes to IDs
+    const seatIds = selectedSeats.value.map(code => {
+        const seat = allSeats.value.find(s => s.seat_code === code);
+        return seat ? seat.id : null;
+    }).filter(id => id !== null);
+    
+    if (seatIds.length === 0) {
+        alert(`Gagal mendapatkan ID kursi. Selected: ${selectedSeats.value.join(', ')}. AllSeats: ${allSeats.value.length}`);
+        return;
+    }
+    
+    const payload = {
+        user_id: 1, // Hardcoded user ID
+        showtime_id: selectedShowtime.value.id,
+        seat_ids: seatIds
+    };
+    
+    try {
+        isLoading.value = true;
+        const response = await fetch('http://127.0.0.1:3000/api/bookings', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            alert('Pemesanan berhasil!');
+            // Reset selection or navigate away
+            selectedSeats.value = [];
+            selectedDate.value = null;
+            selectedTime.value = null;
+            router.push('/');
+        } else {
+            alert(result.message || 'Gagal membuat pemesanan');
+        }
+    } catch (err) {
+        console.error('Error creating booking:', err);
+        alert('Terjadi kesalahan saat memproses pemesanan');
+    } finally {
+        isLoading.value = false;
+    }
+};
+
 const canConfirm = computed(
     () =>
         !!selectedMovie.value.id &&
         !!selectedDate.value &&
         !!selectedTime.value &&
+        !!selectedShowtime.value &&
         selectedSeats.value.length > 0
 );
 </script>

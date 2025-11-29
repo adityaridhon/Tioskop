@@ -330,3 +330,25 @@ pub async fn cancel_booking(
         Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
     }
 }
+
+// Get booked seats by showtime
+pub async fn get_booked_seats_by_showtime(
+    State(pool): State<MySqlPool>,
+    Path(showtime_id): Path<i64>,
+) -> Json<ApiResponse<Vec<String>>> {
+    let seats_result = sqlx::query_scalar::<_, String>(
+        "SELECT s.seat_code 
+        FROM booking_seats bs
+        JOIN bookings b ON bs.booking_id = b.id
+        JOIN seats s ON bs.seat_id = s.id
+        WHERE b.showtime_id = ? AND b.payment_status != 'CANCELLED'"
+    )
+    .bind(showtime_id)
+    .fetch_all(&pool)
+    .await;
+
+    match seats_result {
+        Ok(seats) => Json(ApiResponse::success("Berhasil mengambil kursi yang dibooking", seats)),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+    }
+}
