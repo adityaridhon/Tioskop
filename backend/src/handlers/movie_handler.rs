@@ -19,17 +19,32 @@ pub async fn search_movies(
     Query(params): Query<SearchParams>,
 ) -> Json<ApiResponse<Vec<Movie>>> {
     let search_pattern = params.q
-        .map(|query_str| format!("%{}%", query_str))
-        .unwrap_or_else(|| "%".to_string());
+        .map(|q| format!("%{}%", q))
+        .unwrap_or_else(|| "%".into());
 
-    sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE title LIKE ?"
-    )
-    .bind(search_pattern)
+    let movies = sqlx::query_as::<_, Movie>(
+    r#"
+    SELECT id, title, genre, rating, duration, description, poster_url, release_date 
+    FROM movies
+    WHERE title LIKE ?
+    ORDER BY 
+        CASE 
+            WHEN title LIKE CONCAT(?, '%') THEN 1
+            WHEN title LIKE CONCAT('% ', ?, '%') THEN 2
+            ELSE 3
+        END,
+        title ASC
+    "#)
+    .bind(&search_pattern)       // %a%
+    .bind(params.q.as_deref())   // a
+    .bind(params.q.as_deref())   // a
     .fetch_all(&pool)
-    .await
-    .map(|movies| Json(ApiResponse::success("Berhasil mencari film", movies)))
-    .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+    .await;
+
+    match movies {
+        Ok(data) => Json(ApiResponse::success("OK", data)),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
 }
 
 pub async fn create_movie(
