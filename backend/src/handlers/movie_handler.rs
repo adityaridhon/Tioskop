@@ -23,21 +23,13 @@ pub async fn search_movies(
         .unwrap_or_else(|| "%".into());
 
     let movies = sqlx::query_as::<_, Movie>(
-    r#"
-    SELECT id, title, genre, rating, duration, description, poster_url, release_date 
-    FROM movies
-    WHERE title LIKE ?
-    ORDER BY 
-        CASE 
-            WHEN title LIKE CONCAT(?, '%') THEN 1
-            WHEN title LIKE CONCAT('% ', ?, '%') THEN 2
-            ELSE 3
-        END,
-        title ASC
-    "#)
-    .bind(&search_pattern)       // %a%
-    .bind(params.q.as_deref())   // a
-    .bind(params.q.as_deref())   // a
+        "SELECT id, title, genre, rating, duration, description, poster_url, release_date
+        FROM movies
+        WHERE title LIKE ?
+        ORDER BY release_date DESC
+        LIMIT 15"
+    )
+    .bind(search_pattern)
     .fetch_all(&pool)
     .await;
 
