@@ -105,7 +105,7 @@ pub async fn login(
     let hashed_password = hash_password(&payload.password);
 
     let user_result = sqlx::query_as::<_, User>(
-        "SELECT id, name, email, password, role, CAST(created_at AS DATETIME) as created_at, CAST(updated_at AS DATETIME) as updated_at FROM users WHERE email = ? AND password = ?"
+        "SELECT id, name, email, password, role, CAST(created_at AS DATETIME) as created_at, NULL as updated_at FROM users WHERE email = ? AND password = ?"
     )
     .bind(&payload.email)
     .bind(&hashed_password)
