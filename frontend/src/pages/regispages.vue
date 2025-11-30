@@ -20,6 +20,10 @@
               </div>
               <form class="space-y-4 md:space-y-6" @submit.prevent="handleRegister">
                   <div>
+                      <label for="name" class="block mb-2 text-sm font-medium text-gray-700">Full name</label>
+                      <input type="text" v-model="name" name="name" id="name" class="bg-gray-100 border border-gray-200 text-gray-900 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="" required="">
+                  </div>
+                  <div>
                       <label for="email" class="block mb-2 text-sm font-medium text-gray-700">Email address</label>
                       <input type="email" v-model="email" name="email" id="email" class="bg-gray-100 border border-gray-200 text-gray-900 rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5" placeholder="" required="">
                   </div>
@@ -69,6 +73,11 @@ const errorMessage = ref('');
 
 const handleRegister = async () => {
   errorMessage.value = '';
+
+  if (!name.value.trim()) {
+    errorMessage.value = 'Name is required';
+    return;
+  }
 
   if (password.value !== confirmPassword.value) {
     errorMessage.value = 'Passwords do not match';

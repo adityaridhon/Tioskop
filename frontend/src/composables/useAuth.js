@@ -2,10 +2,30 @@ import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { authAPI } from '@/services/api';
 
-const user = ref(JSON.parse(localStorage.getItem('user') || 'null'));
-const token = ref(localStorage.getItem('token') || '');
+const getStoredToken = () => localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+const getStoredUser = () => {
+  const serialized = localStorage.getItem('user') || sessionStorage.getItem('user') || 'null';
+  try {
+    return JSON.parse(serialized);
+  } catch (_) {
+    return null;
+  }
+};
+
+const user = ref(getStoredUser());
+const token = ref(getStoredToken());
 const isLoading = ref(false);
 const error = ref(null);
+
+const persistUser = (data) => {
+  const serialized = JSON.stringify(data);
+  if (localStorage.getItem('token')) {
+    localStorage.setItem('user', serialized);
+  }
+  if (sessionStorage.getItem('token')) {
+    sessionStorage.setItem('user', serialized);
+  }
+};
 
 export function useAuth() {
   const router = useRouter();
@@ -69,6 +89,26 @@ export function useAuth() {
     }
   };
 
+  const fetchProfile = async () => {
+    if (!token.value) return null;
+    isLoading.value = true;
+    error.value = null;
+    try {
+      const resp = await authAPI.profile();
+      if (!resp.success || !resp.data) {
+        throw new Error(resp.message || 'Gagal mengambil profile');
+      }
+      user.value = resp.data;
+      persistUser(resp.data);
+      return resp.data;
+    } catch (err) {
+      error.value = err.message || String(err);
+      throw err;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
   const logout = () => {
     token.value = '';
     user.value = null;
@@ -76,6 +116,7 @@ export function useAuth() {
     localStorage.removeItem('user');
     sessionStorage.removeItem('token');
     sessionStorage.removeItem('user');
+    router.push('/login');
   };
 
   return {
@@ -85,6 +126,7 @@ export function useAuth() {
     error,
     login,
     register,
+    fetchProfile,
     logout,
   };
 }

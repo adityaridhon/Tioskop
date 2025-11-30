@@ -1,5 +1,5 @@
 use axum::{
-    routing::post,
+    routing::{post, get},
     Router,
 };
 use sqlx::MySqlPool;
@@ -9,4 +9,5 @@ pub fn auth_routes() -> Router<MySqlPool> {
     Router::new()
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
+        .route("/api/auth/profile", get(get_profile))
 }
