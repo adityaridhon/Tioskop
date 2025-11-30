@@ -3,6 +3,7 @@ use sqlx::MySqlPool;
 use crate::models::*;
 use jsonwebtoken::{EncodingKey, Header};
 use serde::Serialize;
+use crate::middleware::auth::AuthUser;
 
 #[derive(Serialize)]
 struct Claims {
@@ -154,7 +155,7 @@ pub async fn login(
 // Get user profile 
 pub async fn get_profile(
     State(pool): State<MySqlPool>,
-    user_id: i64,
+    AuthUser(user_id): AuthUser,
 ) -> Json<ApiResponse<UserInfo>> {
     let user_result = sqlx::query_as::<_, User>(
         "SELECT id, name, email, password, role, CAST(created_at AS DATETIME) as created_at, CAST(updated_at AS DATETIME) as updated_at FROM users WHERE id = ?"

@@ -633,4 +633,16 @@ export const authAPI = {
       throw err;
     }
   },
+
+  profile: async () => {
+    try {
+      const response = await fetchWithAuth(`${API_BASE_URL}/auth/profile`);
+      return handleResponse(response);
+    } catch (err) {
+      if (err.message && err.message.includes('fetch')) {
+        throw new Error('Tidak dapat terhubung ke server. Pastikan backend sedang berjalan.');
+      }
+      throw err;
+    }
+  },
 };
