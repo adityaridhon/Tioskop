@@ -35,7 +35,7 @@ CREATE TABLE `bookings` (
   `total_price` decimal(10,2) DEFAULT NULL,
   `payment_status` enum('PENDING','PAID','CANCELLED') DEFAULT 'PENDING',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `bookings`
@@ -62,7 +62,7 @@ CREATE TABLE `booking_seats` (
   `booking_id` bigint DEFAULT NULL,
   `seat_id` bigint DEFAULT NULL,
   `price` decimal(10,2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `booking_seats`
@@ -95,7 +95,7 @@ CREATE TABLE `cinemas` (
   `city` varchar(100) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `user_id` bigint DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `cinemas`
@@ -122,17 +122,17 @@ CREATE TABLE `movies` (
   `poster_url` varchar(255) DEFAULT NULL,
   `release_date` date DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `movies`
 --
 
 INSERT INTO `movies` (`id`, `title`, `genre`, `rating`, `duration`, `description`, `poster_url`, `release_date`, `created_at`) VALUES
-(1, 'Deadpool & Wolverine', 'Action, Comedy', '8.4', 130, 'Kolaborasi anti-hero Marvel penuh humor brutal', 'poster1.jpg', '2024-09-21', '2025-11-26 10:38:17'),
-(2, 'Inside Out 2', 'Animation, Family', '8.9', 100, 'Petualangan emosional baru dalam diri Riley', 'poster2.jpg', '2024-06-14', '2025-11-26 10:38:17'),
-(3, 'Avatar: The Way of Water', 'Sci-Fi', '10', 192, 'Kembali ke Pandora dengan petualangan air', 'poster3.jpg', '2023-12-16', '2025-11-26 10:38:17'),
-(4, 'Agak Laen 2', 'Komedi', '8.5', 120, 'Komedi lucu aja', 'poster5.jpg', '2025-11-27', '2025-11-26 10:38:17');
+(1, 'Deadpool & Wolverine', 'Action, Comedy', '8.4', 130, 'Kolaborasi anti-hero Marvel penuh humor brutal', '/film-1.webp', '2024-09-21', '2025-11-26 10:38:17'),
+(2, 'Inside Out 2', 'Animation, Family', '8.9', 100, 'Petualangan emosional baru dalam diri Riley', '/film-2.webp', '2024-06-14', '2025-11-26 10:38:17'),
+(3, 'Avatar: The Way of Water', 'Sci-Fi', '10', 192, 'Kembali ke Pandora dengan petualangan air', '/film-3.webp', '2023-12-16', '2025-11-26 10:38:17'),
+(4, 'Agak Laen 2', 'Komedi', '8.5', 120, 'Komedi lucu aja', '/film-5.webp', '2025-11-27', '2025-11-26 10:38:17');
 
 -- --------------------------------------------------------
 
@@ -147,7 +147,7 @@ CREATE TABLE `seats` (
   `seat_row` int DEFAULT NULL,
   `seat_col` int DEFAULT NULL,
   `seat_status` enum('AVAILABLE','BROKEN') DEFAULT 'AVAILABLE'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `seats`
@@ -317,7 +317,7 @@ CREATE TABLE `showtimes` (
   `studio_id` bigint DEFAULT NULL,
   `start_time` datetime DEFAULT NULL,
   `price` decimal(10,2) DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `showtimes`
@@ -343,7 +343,7 @@ CREATE TABLE `studios` (
   `name` varchar(50) NOT NULL,
   `capacity` int NOT NULL,
   `type` varchar(50) DEFAULT 'REGULAR'
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `studios`
@@ -365,11 +365,11 @@ CREATE TABLE `users` (
   `id` bigint NOT NULL,
   `name` varchar(100) DEFAULT NULL,
   `email` varchar(100) DEFAULT NULL,
-  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
+  `password` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL,
   `role` enum('admin','customer') DEFAULT 'customer',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 --
 -- Dumping data for table `users`
@@ -543,3 +543,4 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
