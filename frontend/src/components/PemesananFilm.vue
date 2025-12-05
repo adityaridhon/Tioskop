@@ -353,6 +353,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { bookingsAPI } from "@/services/api";
+import { useAuth } from "@/composables/useAuth";
 import {
     ArrowLeft,
     Film,
@@ -366,6 +368,7 @@ import {
 
 const route = useRoute();
 const router = useRouter();
+const { user, token } = useAuth();
 
 const goBack = () => {
     router.back();
@@ -610,6 +613,13 @@ const formatCurrency = (amount: number) =>
 const handleConfirm = async () => {
     if (!canConfirm.value || !selectedShowtime.value) return;
     
+    // Cek apakah user sudah login
+    if (!user.value || !token.value) {
+        alert('Silakan login terlebih dahulu untuk memesan tiket');
+        router.push('/login');
+        return;
+    }
+    
     // Debug
     if (allSeats.value.length === 0) {
         alert(`Debug: Data kursi kosong. Showtime ID: ${selectedShowtime.value.id}`);
@@ -633,24 +643,15 @@ const handleConfirm = async () => {
     }
     
     const payload = {
-        user_id: 1, // Hardcoded user ID
         showtime_id: selectedShowtime.value.id,
         seat_ids: seatIds
     };
     
     try {
         isLoading.value = true;
-        const response = await fetch('http://127.0.0.1:3000/api/bookings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
+        const result = await bookingsAPI.create(payload);
         
-        const result = await response.json();
-        
-        if (response.ok && result.success) {
+        if (result.success) {
             alert('Pemesanan berhasil!');
             // Reset selection or navigate away
             selectedSeats.value = [];
@@ -662,7 +663,7 @@ const handleConfirm = async () => {
         }
     } catch (err) {
         console.error('Error creating booking:', err);
-        alert('Terjadi kesalahan saat memproses pemesanan');
+        alert('Terjadi kesalahan saat memproses pemesanan. Pastikan Anda sudah login.');
     } finally {
         isLoading.value = false;
     }
