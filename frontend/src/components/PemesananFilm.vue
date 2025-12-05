@@ -69,9 +69,12 @@
                                         :alt="selectedMovie.title"
                                         class="w-full h-full object-cover"
                                         @error="
-                                            (e) =>
-                                                (e.target.src =
-                                                    '/placeholder.jpg')
+                                            (e: Event) => {
+                                                const target = e.target as HTMLImageElement | null;
+                                                if (target) {
+                                                    target.src = '/placeholder.jpg';
+                                                }
+                                            }
                                         "
                                         loading="lazy"
                                     />
@@ -767,8 +770,8 @@ const handleConfirm = async () => {
     try {
         isLoading.value = true;
 
-        // Prepare headers
-        const headers = {
+        // Prepare headers with proper typing
+        const headers: Record<string, string> = {
             "Content-Type": "application/json",
         };
 
