@@ -68,6 +68,12 @@
                                         "
                                         :alt="selectedMovie.title"
                                         class="w-full h-full object-cover"
+                                        @error="
+                                            (e) =>
+                                                (e.target.src =
+                                                    '/placeholder.jpg')
+                                        "
+                                        loading="lazy"
                                     />
                                 </div>
                             </div>
