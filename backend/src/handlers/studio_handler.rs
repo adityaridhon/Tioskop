@@ -1,10 +1,10 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{extract::{Path, Extension}, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
 
 // Get all studios 
 pub async fn get_all_studios(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
 ) -> Json<ApiResponse<Vec<Studio>>> {
     sqlx::query_as::<_, Studio>(
         "SELECT id, cinema_id, name, capacity, type FROM studios"
@@ -17,7 +17,7 @@ pub async fn get_all_studios(
 
 // Get studio by ID
 pub async fn get_studio_by_id(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<Studio>> {
     sqlx::query_as::<_, Studio>(
@@ -32,7 +32,7 @@ pub async fn get_studio_by_id(
 
 // Get studios by cinema_id
 pub async fn get_studios_by_cinema(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(cinema_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Studio>>> {
     sqlx::query_as::<_, Studio>(
@@ -47,7 +47,7 @@ pub async fn get_studios_by_cinema(
 
 // Create studio
 pub async fn create_studio(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Json(payload): Json<CreateStudioRequest>,
 ) -> Json<ApiResponse<Studio>> {
     let insert_result = sqlx::query(
@@ -79,7 +79,7 @@ pub async fn create_studio(
 
 // Update studio
 pub async fn update_studio(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateStudioRequest>,
 ) -> Json<ApiResponse<Studio>> {
@@ -125,7 +125,7 @@ pub async fn update_studio(
 
 // Delete studio
 pub async fn delete_studio(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
     sqlx::query("DELETE FROM studios WHERE id = ?")

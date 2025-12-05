@@ -64,7 +64,7 @@ pub async fn register(
         "SELECT COUNT(*) FROM users WHERE email = ?"
     )
     .bind(&payload.email)
-    .fetch_one(&pool)
+    .fetch_one(pool)
     .await
     .unwrap_or(0);
 
@@ -79,7 +79,7 @@ pub async fn register(
     .bind(&payload.email)
     .bind(&hashed_password)
     .bind(&role)
-    .execute(&pool)
+    .execute(pool)
     .await;
 
     match insert_result {
@@ -113,7 +113,7 @@ pub async fn login(
     )
     .bind(&payload.email)
     .bind(&hashed_password)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await;
 
     match user_result {
@@ -123,7 +123,7 @@ pub async fn login(
                     "SELECT id FROM cinemas WHERE user_id = ? LIMIT 1"
                 )
                 .bind(user.id)
-                .fetch_optional(&pool)
+                .fetch_optional(pool)
                 .await
                 .unwrap_or(None)
             } else {
@@ -165,7 +165,7 @@ pub async fn get_profile(
         "SELECT id, name, email, password, role, CAST(created_at AS DATETIME) as created_at, CAST(updated_at AS DATETIME) as updated_at FROM users WHERE id = ?"
     )
     .bind(user_id)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await;
 
     match user_result {
@@ -175,7 +175,7 @@ pub async fn get_profile(
                     "SELECT id FROM cinemas WHERE user_id = ? LIMIT 1"
                 )
                 .bind(user.id)
-                .fetch_optional(&pool)
+                .fetch_optional(pool)
                 .await
                 .unwrap_or(None)
             } else {
@@ -207,7 +207,7 @@ pub async fn get_admin_cinemas(
         "SELECT id, name, address, city, created_at, user_id FROM cinemas WHERE user_id = ?"
     )
     .bind(user_id)
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await
     .map(|cinemas| Json(ApiResponse::success("Berhasil mengambil cinemas", cinemas)))
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))

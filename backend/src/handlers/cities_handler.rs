@@ -19,5 +19,5 @@ pub async fn get_cities(
 
     let city_infos: Vec<CityInfo> = cities.into_iter().map(|c| c.into()).collect();
 
-    Ok(Json(ApiResponse::success(city_infos)))
+    Ok(Json(ApiResponse::success("Berhasil mengambil daftar kota", city_infos)))
 }

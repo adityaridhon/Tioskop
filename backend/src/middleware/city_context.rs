@@ -21,20 +21,14 @@ pub async fn city_context_middleware(
         .map(|s| s.to_lowercase())
         .unwrap_or_else(|| "balikpapan".to_string()); // default city
 
-    println!("🏙️  Request for city: {}", city);
-
-    // Get the appropriate pool
+    // Get the appropriate pool for the city
     let pool = pools
         .get_city_pool(&city)
-        .ok_or_else(|| {
-            eprintln!("❌ Invalid city: {}", city);
-            StatusCode::BAD_REQUEST
-        })?
+        .ok_or_else(|| StatusCode::BAD_REQUEST)?
         .clone();
 
-    // Add to request extensions
+    // Add pool and city to request extensions
     req.extensions_mut().insert(pool);
-    req.extensions_mut().insert(city);
 
     Ok(next.run(req).await)
 }

@@ -13,7 +13,7 @@ impl DatabasePools {
         let central_url = env::var("DATABASE_URL_CENTRAL")
             .unwrap_or_else(|_| "mysql://root:@localhost:3306/tioskop_central_db".to_string());
         
-        println!("🔌 Connecting to Central DB: {}", central_url);
+        
         
         let central = MySqlPoolOptions::new()
             .max_connections(5)
@@ -21,7 +21,7 @@ impl DatabasePools {
             .await
             .expect("❌ Failed to connect to Central DB");
 
-        println!("✅ Connected to Central DB");
+        
 
         // 2. Read cities configuration from Central DB
         let cities_config = sqlx::query(
@@ -37,7 +37,7 @@ impl DatabasePools {
             let city_name: String = row.get("name");
             let db_url: String = row.get("db_url");
             
-            println!("🔌 Connecting to {} DB: {}", city_name, db_url);
+            
             
             let pool = MySqlPoolOptions::new()
                 .max_connections(10)
@@ -45,14 +45,14 @@ impl DatabasePools {
                 .await
                 .expect(&format!("❌ Failed to connect to {} DB", city_name));
             
-            println!("✅ Connected to {} DB", city_name);
+            
             
             cities.insert(city_name.to_lowercase(), pool);
         }
 
-        println!("🎉 All database connections established!");
-        println!("   - Central DB: 1 connection");
-        println!("   - City DBs: {} connections", cities.len());
+        
+        
+        
 
         DatabasePools { central, cities }
     }

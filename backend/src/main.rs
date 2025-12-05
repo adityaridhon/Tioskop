@@ -28,10 +28,10 @@ async fn main() {
     // Setup multi-database pools
     let pools = Arc::new(config::DatabasePools::new().await);
     
-    println!("\n📊 Database Status:");
-    println!("   ✅ Central DB: Connected");
-    println!("   ✅ City DBs: {} connected", pools.list_cities().len());
-    println!("   📍 Available cities: {:?}\n", pools.list_cities());
+    println!("✅ Connected to Central DB");
+    println!("✅ Loaded {} city databases", pools.cities.len());
+    println!("📍 Available cities: {:?}\n", pools.list_cities());
+    
 
     // Setup CORS
     let cors = CorsLayer::new()
@@ -62,17 +62,26 @@ async fn main() {
 
     // Run server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    
     println!("🌐 Server running on http://{}", addr);
     println!("📡 API Endpoints:");
     println!("   - GET  /api/cities          (Public)");
     println!("   - POST /api/auth/login      (Public)");
-    println!("   - POST /api/auth/register   (Public)");
     println!("   - GET  /api/movies          (Public)");
     println!("   - GET  /api/showtimes       (City-specific)");
-    println!("   - GET  /api/studios         (City-specific)");
-    println!("   - GET  /api/seats           (City-specific)");
     println!("   - POST /api/bookings        (City-specific)");
     println!("\n💡 Tip: Add 'X-City-Name' header for city-specific requests\n");
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

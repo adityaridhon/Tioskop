@@ -31,7 +31,7 @@ pub async fn update_movie_posters(
             .bind(poster_url)
             .bind(title)
             .bind(id)
-            .execute(&pool)
+            .execute(pool)
             .await
         {
             Ok(result) => {
@@ -67,7 +67,7 @@ pub async fn update_movie_posters(
         .bind(release_date)
         .bind(title)
         .bind(poster_url)
-        .execute(&pool)
+        .execute(pool)
         .await;
         
         if let Ok(result) = insert_result {

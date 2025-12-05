@@ -1,4 +1,4 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{extract::{Path, Extension}, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
 use crate::middleware::auth::AuthUser;
@@ -15,7 +15,7 @@ fn generate_booking_code() -> String {
 
 // Get all bookings - Functional Programming approach
 pub async fn get_all_bookings(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
 ) -> Json<ApiResponse<Vec<Booking>>> {
     sqlx::query_as::<_, Booking>(
         "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings ORDER BY created_at DESC"
@@ -28,7 +28,7 @@ pub async fn get_all_bookings(
 
 // Get booking by ID dengan detail seats - Functional Programming approach
 pub async fn get_booking_by_id(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<BookingDetail>> {
     // Fetch booking
@@ -85,7 +85,7 @@ pub async fn get_booking_by_id(
 
 // Get bookings by user_id - Functional Programming approach
 pub async fn get_bookings_by_user(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(user_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Booking>>> {
     sqlx::query_as::<_, Booking>(
@@ -101,7 +101,7 @@ pub async fn get_bookings_by_user(
 // Create booking - Functional Programming approach (Protected with JWT)
 pub async fn create_booking(
     AuthUser(authenticated_user_id): AuthUser,
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Json(payload): Json<CreateBookingRequest>,
 ) -> Json<ApiResponse<BookingDetail>> {
     // Use authenticated user_id instead of payload.user_id for security
@@ -250,7 +250,7 @@ pub async fn create_booking(
 
 // Update payment status - Functional Programming approach
 pub async fn update_payment_status(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePaymentStatusRequest>,
 ) -> Json<ApiResponse<Booking>> {
@@ -288,7 +288,7 @@ pub async fn update_payment_status(
 
 // Cancel booking - Functional Programming approach
 pub async fn cancel_booking(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<Booking>> {
     // Get seat IDs sebelum cancel untuk kembalikan status
@@ -338,7 +338,7 @@ pub async fn cancel_booking(
 
 // Get booked seats by showtime
 pub async fn get_booked_seats_by_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(showtime_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<String>>> {
     let seats_result = sqlx::query_scalar::<_, String>(
