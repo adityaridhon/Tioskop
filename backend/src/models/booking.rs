@@ -23,7 +23,6 @@ pub struct BookingSeat {
 
 #[derive(Deserialize)]
 pub struct CreateBookingRequest {
-    pub user_id: i64,
     pub showtime_id: i64,
     pub seat_ids: Vec<i64>, 
 }
