@@ -1,8 +1,9 @@
 use axum::{routing::{get, post}, Router};
-use sqlx::MySqlPool;
+use std::sync::Arc;
+use crate::config::DatabasePools;
 use crate::handlers::seat_handler::*;
 
-pub fn seat_routes() -> Router<MySqlPool> {
+pub fn seat_routes() -> Router<Arc<DatabasePools>> {
     Router::new()
         .route("/api/seats", get(get_all_seats))
         .route("/api/seats/generate", post(generate_seats_for_studio))

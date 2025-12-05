@@ -1,8 +1,9 @@
 use axum::{routing::{get, post, put}, Router};
-use sqlx::MySqlPool;
+use std::sync::Arc;
+use crate::config::DatabasePools;
 use crate::handlers::booking_handler::*;
 
-pub fn booking_routes() -> Router<MySqlPool> {
+pub fn booking_routes() -> Router<Arc<DatabasePools>> {
     Router::new()
         .route("/api/bookings", get(get_all_bookings).post(create_booking))
         .route("/api/bookings/{id}", get(get_booking_by_id))

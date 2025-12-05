@@ -1,5 +1,6 @@
 use axum::{extract::State, Json};
-use sqlx::MySqlPool;
+use std::sync::Arc;
+use crate::config::DatabasePools;
 use crate::models::response::ApiResponse;
 use serde::Serialize;
 
@@ -10,8 +11,9 @@ pub struct UpdateResult {
 }
 
 pub async fn update_movie_posters(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
 ) -> Json<ApiResponse<UpdateResult>> {
+    let pool = pools.get_central();
     // Update all movie posters and titles to match local assets
     // film-1: Sate Gagak, film-2: Pangku, film-3: Dopamin
     // film-4: Danyang Wingit, film-6: Now You See Me, film-7: Running Man, film-8: Keeper
