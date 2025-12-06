@@ -4,7 +4,7 @@ import Admin from "../pages/Admin.vue";
 import JadwalTayang from "../pages/JadwalTayang.vue";
 import Movies from "../pages/Movies.vue";
 import Users from "../pages/Users.vue";
-import PemesananFilm from "../components/PemesananFilm.vue";
+import JadwalFilm from "../components/JadwalFilm.vue";
 import Loginpages from "../pages/loginpages.vue";
 import Regispage from "../pages/regispages.vue";
 import CinemaSchedule from "../pages/CinemaSchedule.vue";
@@ -19,7 +19,12 @@ const routes = [
     {
         path: "/pemesanan/:movieId",
         name: "PemesananFilm",
-        component: PemesananFilm,
+        component: JadwalFilm,
+    },
+    {
+        path: "/booking/:movieId/:showtimeId",
+        name: "Booking",
+        component: () => import("../components/PemesananFilm.vue"),
     },
     {
         path: "/admin",
