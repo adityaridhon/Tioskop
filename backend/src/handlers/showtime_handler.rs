@@ -1,16 +1,22 @@
-use axum::{extract::{Path, State}, Json};
-use sqlx::MySqlPool;
 use crate::models::*;
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use sqlx::MySqlPool;
 
-pub async fn get_all_showtimes(
-    State(pool): State<MySqlPool>,
-) -> Json<ApiResponse<Vec<Showtime>>> {
+pub async fn get_all_showtimes(State(pool): State<MySqlPool>) -> Json<ApiResponse<Vec<Showtime>>> {
     sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes"
+        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes",
     )
     .fetch_all(&pool)
     .await
-    .map(|showtimes| Json(ApiResponse::success("Berhasil mengambil semua showtimes", showtimes)))
+    .map(|showtimes| {
+        Json(ApiResponse::success(
+            "Berhasil mengambil semua showtimes",
+            showtimes,
+        ))
+    })
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
@@ -19,12 +25,17 @@ pub async fn get_showtimes_by_movie(
     Path(movie_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Showtime>>> {
     sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE movie_id = ?"
+        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE movie_id = ?",
     )
     .bind(movie_id)
     .fetch_all(&pool)
     .await
-    .map(|showtimes| Json(ApiResponse::success("Berhasil mengambil showtimes untuk film ini", showtimes)))
+    .map(|showtimes| {
+        Json(ApiResponse::success(
+            "Berhasil mengambil showtimes untuk film ini",
+            showtimes,
+        ))
+    })
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
@@ -33,7 +44,7 @@ pub async fn create_showtime(
     Json(payload): Json<CreateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
     let insert_result = sqlx::query(
-        "INSERT INTO showtimes (movie_id, studio_id, start_time, price) VALUES (?, ?, ?, ?)"
+        "INSERT INTO showtimes (movie_id, studio_id, start_time, price) VALUES (?, ?, ?, ?)",
     )
     .bind(payload.movie_id)
     .bind(payload.studio_id)
@@ -45,17 +56,27 @@ pub async fn create_showtime(
     match insert_result {
         Ok(result) => {
             let showtime_id = result.last_insert_id() as i64;
-            
+
             sqlx::query_as::<_, Showtime>(
-                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
+                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?",
             )
             .bind(showtime_id)
             .fetch_one(&pool)
             .await
-            .map(|showtime| Json(ApiResponse::success("Berhasil menambahkan showtime", showtime)))
-            .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch created showtime: {}", e))))
-        },
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+            .map(|showtime| {
+                Json(ApiResponse::success(
+                    "Berhasil menambahkan showtime",
+                    showtime,
+                ))
+            })
+            .unwrap_or_else(|e| {
+                Json(ApiResponse::error(&format!(
+                    "Failed to fetch created showtime: {}",
+                    e
+                )))
+            })
+        }
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -65,7 +86,7 @@ pub async fn update_showtime(
     Json(payload): Json<UpdateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
     let showtime_exists = sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
+        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(&pool)
@@ -91,16 +112,29 @@ pub async fn update_showtime(
             .ok();
 
             sqlx::query_as::<_, Showtime>(
-                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
+                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?",
             )
             .bind(id)
             .fetch_one(&pool)
             .await
-            .map(|showtime| Json(ApiResponse::success("Berhasil mengupdate showtime", showtime)))
-            .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch updated showtime: {}", e))))
-        },
-        Ok(None) => Json(ApiResponse::error(&format!("Showtime dengan id {} tidak ditemukan", id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+            .map(|showtime| {
+                Json(ApiResponse::success(
+                    "Berhasil mengupdate showtime",
+                    showtime,
+                ))
+            })
+            .unwrap_or_else(|e| {
+                Json(ApiResponse::error(&format!(
+                    "Failed to fetch updated showtime: {}",
+                    e
+                )))
+            })
+        }
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Showtime dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -115,9 +149,15 @@ pub async fn delete_showtime(
         .map(|result| {
             let deleted = result.rows_affected() > 0;
             if deleted {
-                Json(ApiResponse::success("Berhasil menghapus showtime", DeleteResponse { id, deleted }))
+                Json(ApiResponse::success(
+                    "Berhasil menghapus showtime",
+                    DeleteResponse { id, deleted },
+                ))
             } else {
-                Json(ApiResponse::error(&format!("Showtime dengan id {} tidak ditemukan", id)))
+                Json(ApiResponse::error(&format!(
+                    "Showtime dengan id {} tidak ditemukan",
+                    id
+                )))
             }
         })
         .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))

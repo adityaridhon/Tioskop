@@ -1,9 +1,9 @@
-use sqlx::{mysql::MySqlPoolOptions, MySqlPool};
+use sqlx::{MySqlPool, mysql::MySqlPoolOptions};
 use std::env;
 
 pub async fn create_pool() -> MySqlPool {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    
+
     MySqlPoolOptions::new()
         .max_connections(10)
         .connect(&database_url)

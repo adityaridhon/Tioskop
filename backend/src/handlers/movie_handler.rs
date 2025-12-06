@@ -1,10 +1,11 @@
-use axum::{extract::{Path, Query, State}, Json};
-use sqlx::MySqlPool;
 use crate::models::*;
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+};
+use sqlx::MySqlPool;
 
-pub async fn get_all_movies(
-    State(pool): State<MySqlPool>,
-) -> Json<ApiResponse<Vec<Movie>>> {
+pub async fn get_all_movies(State(pool): State<MySqlPool>) -> Json<ApiResponse<Vec<Movie>>> {
     sqlx::query_as::<_, Movie>(
         "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies"
     )
@@ -18,7 +19,8 @@ pub async fn search_movies(
     State(pool): State<MySqlPool>,
     Query(params): Query<SearchParams>,
 ) -> Json<ApiResponse<Vec<Movie>>> {
-    let search_pattern = params.q
+    let search_pattern = params
+        .q
         .map(|q| format!("%{}%", q))
         .unwrap_or_else(|| "%".into());
 
@@ -27,7 +29,7 @@ pub async fn search_movies(
         FROM movies
         WHERE title LIKE ?
         ORDER BY release_date DESC
-        LIMIT 15"
+        LIMIT 15",
     )
     .bind(search_pattern)
     .fetch_all(&pool)
@@ -59,7 +61,7 @@ pub async fn create_movie(
     match insert_result {
         Ok(result) => {
             let movie_id = result.last_insert_id() as i64;
-            
+
             sqlx::query_as::<_, Movie>(
                 "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
             )
@@ -68,8 +70,8 @@ pub async fn create_movie(
             .await
             .map(|movie| Json(ApiResponse::success("Berhasil menambahkan film", movie)))
             .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch created movie: {}", e))))
-        },
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        }
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -118,9 +120,12 @@ pub async fn update_movie(
             .await
             .map(|movie| Json(ApiResponse::success("Berhasil mengupdate film", movie)))
             .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch updated movie: {}", e))))
-        },
-        Ok(None) => Json(ApiResponse::error(&format!("Film dengan id {} tidak ditemukan", id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        }
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Film dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -136,18 +141,26 @@ pub async fn delete_movie(
     .await;
 
     match movie_check {
-        Ok(Some(_)) => {
-            sqlx::query("DELETE FROM movies WHERE id = ?")
-                .bind(id)
-                .execute(&pool)
-                .await
-                .map(|_| Json(ApiResponse::success(
+        Ok(Some(_)) => sqlx::query("DELETE FROM movies WHERE id = ?")
+            .bind(id)
+            .execute(&pool)
+            .await
+            .map(|_| {
+                Json(ApiResponse::success(
                     "Berhasil menghapus film",
-                    DeleteResponse { id, deleted: true }
+                    DeleteResponse { id, deleted: true },
+                ))
+            })
+            .unwrap_or_else(|e| {
+                Json(ApiResponse::error(&format!(
+                    "Failed to delete movie: {}",
+                    e
                 )))
-                .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to delete movie: {}", e))))
-        },
-        Ok(None) => Json(ApiResponse::error(&format!("Film dengan id {} tidak ditemukan", id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+            }),
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Film dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }

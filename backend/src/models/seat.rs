@@ -26,8 +26,8 @@ pub struct SeatWithBookingStatus {
 #[derive(Deserialize)]
 pub struct GenerateSeatsRequest {
     pub studio_id: i64,
-    pub rows: i32,          
-    pub seats_per_row: i32, 
+    pub rows: i32,
+    pub seats_per_row: i32,
 }
 
 #[derive(Serialize)]

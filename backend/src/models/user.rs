@@ -18,7 +18,7 @@ pub struct RegisterRequest {
     pub name: String,
     pub email: String,
     pub password: String,
-    pub role: Option<String>, 
+    pub role: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -39,5 +39,5 @@ pub struct UserInfo {
     pub name: String,
     pub email: String,
     pub role: String,
-    pub cinema_id: Option<i64>, 
+    pub cinema_id: Option<i64>,
 }

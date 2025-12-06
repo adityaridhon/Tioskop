@@ -1,7 +1,10 @@
-use axum::{routing::{get, post, put, delete}, Router};
-use sqlx::MySqlPool;
 use crate::handlers::movie_handler::*;
 use crate::handlers::update_posters::*;
+use axum::{
+    Router,
+    routing::{delete, get, post, put},
+};
+use sqlx::MySqlPool;
 
 pub fn movie_routes() -> Router<MySqlPool> {
     Router::new()

@@ -25,12 +25,12 @@ pub struct BookingSeat {
 pub struct CreateBookingRequest {
     pub user_id: i64,
     pub showtime_id: i64,
-    pub seat_ids: Vec<i64>, 
+    pub seat_ids: Vec<i64>,
 }
 
 #[derive(Deserialize)]
 pub struct UpdatePaymentStatusRequest {
-    pub payment_status: String,  
+    pub payment_status: String,
 }
 
 #[derive(Serialize)]

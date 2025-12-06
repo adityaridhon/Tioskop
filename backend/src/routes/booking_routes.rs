@@ -1,6 +1,9 @@
-use axum::{routing::{get, post, put}, Router};
-use sqlx::MySqlPool;
 use crate::handlers::booking_handler::*;
+use axum::{
+    Router,
+    routing::{get, post, put},
+};
+use sqlx::MySqlPool;
 
 pub fn booking_routes() -> Router<MySqlPool> {
     Router::new()
@@ -9,5 +12,8 @@ pub fn booking_routes() -> Router<MySqlPool> {
         .route("/api/bookings/user/{user_id}", get(get_bookings_by_user))
         .route("/api/bookings/{id}/payment", put(update_payment_status))
         .route("/api/bookings/{id}/cancel", put(cancel_booking))
-        .route("/api/bookings/showtime/{showtime_id}/seats", get(get_booked_seats_by_showtime))
+        .route(
+            "/api/bookings/showtime/{showtime_id}/seats",
+            get(get_booked_seats_by_showtime),
+        )
 }

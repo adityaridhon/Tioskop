@@ -1,7 +1,10 @@
-use axum::{extract::{Path, State}, Json};
-use sqlx::MySqlPool;
-use crate::models::*;
 use crate::middleware::auth::AuthUser;
+use crate::models::*;
+use axum::{
+    Json,
+    extract::{Path, State},
+};
+use sqlx::MySqlPool;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Generate unique booking code - Pure function
@@ -14,9 +17,7 @@ fn generate_booking_code() -> String {
 }
 
 // Get all bookings - Functional Programming approach
-pub async fn get_all_bookings(
-    State(pool): State<MySqlPool>,
-) -> Json<ApiResponse<Vec<Booking>>> {
+pub async fn get_all_bookings(State(pool): State<MySqlPool>) -> Json<ApiResponse<Vec<Booking>>> {
     sqlx::query_as::<_, Booking>(
         "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings ORDER BY created_at DESC"
     )
@@ -46,7 +47,7 @@ pub async fn get_booking_by_id(
                 "SELECT bs.seat_id, s.seat_code, bs.price 
                 FROM booking_seats bs 
                 JOIN seats s ON bs.seat_id = s.id 
-                WHERE bs.booking_id = ?"
+                WHERE bs.booking_id = ?",
             )
             .bind(id)
             .fetch_all(&pool)
@@ -73,13 +74,19 @@ pub async fn get_booking_by_id(
                         created_at: booking.created_at,
                         seats,
                     };
-                    Json(ApiResponse::success("Berhasil mengambil detail booking", detail))
-                },
-                Err(e) => Json(ApiResponse::error(&format!("Failed to fetch seats: {}", e)))
+                    Json(ApiResponse::success(
+                        "Berhasil mengambil detail booking",
+                        detail,
+                    ))
+                }
+                Err(e) => Json(ApiResponse::error(&format!("Failed to fetch seats: {}", e))),
             }
-        },
-        Ok(None) => Json(ApiResponse::error(&format!("Booking dengan id {} tidak ditemukan", id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        }
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Booking dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -106,23 +113,23 @@ pub async fn create_booking(
 ) -> Json<ApiResponse<BookingDetail>> {
     // Use authenticated user_id instead of payload.user_id for security
     let user_id = authenticated_user_id;
-    
+
     // Validasi: cek apakah seats sudah dibooking
-    let seat_ids_str = payload.seat_ids.iter()
+    let seat_ids_str = payload
+        .seat_ids
+        .iter()
         .map(|id| id.to_string())
         .collect::<Vec<_>>()
         .join(",");
 
-    let booked_seats_check = sqlx::query_scalar::<_, i64>(
-        &format!(
-            "SELECT COUNT(*) FROM booking_seats bs
+    let booked_seats_check = sqlx::query_scalar::<_, i64>(&format!(
+        "SELECT COUNT(*) FROM booking_seats bs
             JOIN bookings b ON bs.booking_id = b.id
             WHERE bs.seat_id IN ({}) 
             AND b.showtime_id = ?
             AND b.payment_status != 'CANCELLED'",
-            seat_ids_str
-        )
-    )
+        seat_ids_str
+    ))
     .bind(payload.showtime_id)
     .fetch_one(&pool)
     .await;
@@ -130,20 +137,19 @@ pub async fn create_booking(
     match booked_seats_check {
         Ok(count) if count > 0 => {
             return Json(ApiResponse::error("Beberapa kursi sudah dibooking"));
-        },
+        }
         Err(e) => {
             return Json(ApiResponse::error(&format!("Error checking seats: {}", e)));
-        },
+        }
         _ => {}
     }
 
     // Ambil harga showtime
-    let price_result = sqlx::query_scalar::<_, rust_decimal::Decimal>(
-        "SELECT price FROM showtimes WHERE id = ?"
-    )
-    .bind(payload.showtime_id)
-    .fetch_optional(&pool)
-    .await;
+    let price_result =
+        sqlx::query_scalar::<_, rust_decimal::Decimal>("SELECT price FROM showtimes WHERE id = ?")
+            .bind(payload.showtime_id)
+            .fetch_optional(&pool)
+            .await;
 
     match price_result {
         Ok(Some(price)) => {
@@ -185,13 +191,11 @@ pub async fn create_booking(
 
                     // Update seat status menjadi 'booked' dengan functional approach
                     for seat_id in payload.seat_ids.iter() {
-                        sqlx::query(
-                            "UPDATE seats SET seat_status = 'booked' WHERE id = ?"
-                        )
-                        .bind(seat_id)
-                        .execute(&pool)
-                        .await
-                        .ok();
+                        sqlx::query("UPDATE seats SET seat_status = 'booked' WHERE id = ?")
+                            .bind(seat_id)
+                            .execute(&pool)
+                            .await
+                            .ok();
                     }
 
                     // Fetch created booking dengan seats
@@ -204,25 +208,26 @@ pub async fn create_booking(
 
                     match booking_detail_result {
                         Ok(booking) => {
-                            let seats_result = sqlx::query_as::<_, (i64, String, Option<rust_decimal::Decimal>)>(
-                                "SELECT bs.seat_id, s.seat_code, bs.price 
+                            let seats_result =
+                                sqlx::query_as::<_, (i64, String, Option<rust_decimal::Decimal>)>(
+                                    "SELECT bs.seat_id, s.seat_code, bs.price 
                                 FROM booking_seats bs 
                                 JOIN seats s ON bs.seat_id = s.id 
-                                WHERE bs.booking_id = ?"
-                            )
-                            .bind(booking_id)
-                            .fetch_all(&pool)
-                            .await
-                            .map(|rows| {
-                                rows.into_iter()
-                                    .map(|(seat_id, seat_code, price)| BookingSeatDetail {
-                                        seat_id,
-                                        seat_code,
-                                        price,
-                                    })
-                                    .collect::<Vec<_>>()
-                            })
-                            .unwrap_or_default();
+                                WHERE bs.booking_id = ?",
+                                )
+                                .bind(booking_id)
+                                .fetch_all(&pool)
+                                .await
+                                .map(|rows| {
+                                    rows.into_iter()
+                                        .map(|(seat_id, seat_code, price)| BookingSeatDetail {
+                                            seat_id,
+                                            seat_code,
+                                            price,
+                                        })
+                                        .collect::<Vec<_>>()
+                                })
+                                .unwrap_or_default();
 
                             let detail = BookingDetail {
                                 id: booking.id,
@@ -236,15 +241,21 @@ pub async fn create_booking(
                             };
 
                             Json(ApiResponse::success("Berhasil membuat booking", detail))
-                        },
-                        Err(e) => Json(ApiResponse::error(&format!("Failed to fetch created booking: {}", e)))
+                        }
+                        Err(e) => Json(ApiResponse::error(&format!(
+                            "Failed to fetch created booking: {}",
+                            e
+                        ))),
                     }
-                },
-                Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+                }
+                Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
             }
-        },
-        Ok(None) => Json(ApiResponse::error(&format!("Showtime dengan id {} tidak ditemukan", payload.showtime_id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        }
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Showtime dengan id {} tidak ditemukan",
+            payload.showtime_id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -257,17 +268,17 @@ pub async fn update_payment_status(
     // Validasi payment status
     let valid_statuses = vec!["PENDING", "PAID", "CANCELLED"];
     if !valid_statuses.contains(&payload.payment_status.as_str()) {
-        return Json(ApiResponse::error("Status payment tidak valid. Harus PENDING, PAID, atau CANCELLED"));
+        return Json(ApiResponse::error(
+            "Status payment tidak valid. Harus PENDING, PAID, atau CANCELLED",
+        ));
     }
 
     // Update status
-    let update_result = sqlx::query(
-        "UPDATE bookings SET payment_status = ? WHERE id = ?"
-    )
-    .bind(&payload.payment_status)
-    .bind(id)
-    .execute(&pool)
-    .await;
+    let update_result = sqlx::query("UPDATE bookings SET payment_status = ? WHERE id = ?")
+        .bind(&payload.payment_status)
+        .bind(id)
+        .execute(&pool)
+        .await;
 
     match update_result {
         Ok(result) if result.rows_affected() > 0 => {
@@ -280,9 +291,12 @@ pub async fn update_payment_status(
             .await
             .map(|booking| Json(ApiResponse::success("Berhasil update status payment", booking)))
             .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch updated booking: {}", e))))
-        },
-        Ok(_) => Json(ApiResponse::error(&format!("Booking dengan id {} tidak ditemukan", id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        }
+        Ok(_) => Json(ApiResponse::error(&format!(
+            "Booking dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -292,33 +306,29 @@ pub async fn cancel_booking(
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<Booking>> {
     // Get seat IDs sebelum cancel untuk kembalikan status
-    let seats_result = sqlx::query_scalar::<_, i64>(
-        "SELECT seat_id FROM booking_seats WHERE booking_id = ?"
-    )
-    .bind(id)
-    .fetch_all(&pool)
-    .await;
+    let seats_result =
+        sqlx::query_scalar::<_, i64>("SELECT seat_id FROM booking_seats WHERE booking_id = ?")
+            .bind(id)
+            .fetch_all(&pool)
+            .await;
 
     // Update status ke CANCELLED
-    let update_result = sqlx::query(
-        "UPDATE bookings SET payment_status = 'CANCELLED' WHERE id = ?"
-    )
-    .bind(id)
-    .execute(&pool)
-    .await;
+    let update_result =
+        sqlx::query("UPDATE bookings SET payment_status = 'CANCELLED' WHERE id = ?")
+            .bind(id)
+            .execute(&pool)
+            .await;
 
     match update_result {
         Ok(result) if result.rows_affected() > 0 => {
             // Kembalikan status kursi menjadi 'available'
             if let Ok(seat_ids) = seats_result {
                 for seat_id in seat_ids.iter() {
-                    sqlx::query(
-                        "UPDATE seats SET seat_status = 'available' WHERE id = ?"
-                    )
-                    .bind(seat_id)
-                    .execute(&pool)
-                    .await
-                    .ok();
+                    sqlx::query("UPDATE seats SET seat_status = 'available' WHERE id = ?")
+                        .bind(seat_id)
+                        .execute(&pool)
+                        .await
+                        .ok();
                 }
             }
 
@@ -330,9 +340,12 @@ pub async fn cancel_booking(
             .await
             .map(|booking| Json(ApiResponse::success("Berhasil cancel booking", booking)))
             .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch cancelled booking: {}", e))))
-        },
-        Ok(_) => Json(ApiResponse::error(&format!("Booking dengan id {} tidak ditemukan", id))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        }
+        Ok(_) => Json(ApiResponse::error(&format!(
+            "Booking dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }
 
@@ -346,14 +359,17 @@ pub async fn get_booked_seats_by_showtime(
         FROM booking_seats bs
         JOIN bookings b ON bs.booking_id = b.id
         JOIN seats s ON bs.seat_id = s.id
-        WHERE b.showtime_id = ? AND b.payment_status != 'CANCELLED'"
+        WHERE b.showtime_id = ? AND b.payment_status != 'CANCELLED'",
     )
     .bind(showtime_id)
     .fetch_all(&pool)
     .await;
 
     match seats_result {
-        Ok(seats) => Json(ApiResponse::success("Berhasil mengambil kursi yang dibooking", seats)),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e)))
+        Ok(seats) => Json(ApiResponse::success(
+            "Berhasil mengambil kursi yang dibooking",
+            seats,
+        )),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
     }
 }

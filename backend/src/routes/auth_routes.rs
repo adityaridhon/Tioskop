@@ -1,9 +1,9 @@
+use crate::handlers::auth_handler::*;
 use axum::{
-    routing::{post, get},
     Router,
+    routing::{get, post},
 };
 use sqlx::MySqlPool;
-use crate::handlers::auth_handler::*;
 
 pub fn auth_routes() -> Router<MySqlPool> {
     Router::new()
