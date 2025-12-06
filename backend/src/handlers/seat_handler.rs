@@ -1,10 +1,10 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{extract::{Path, Extension}, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
 
 // Get all seats
 pub async fn get_all_seats(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
 ) -> Json<ApiResponse<Vec<Seat>>> {
     sqlx::query_as::<_, Seat>(
         "SELECT id, studio_id, seat_code, seat_row, seat_col, seat_status FROM seats"
@@ -17,7 +17,7 @@ pub async fn get_all_seats(
 
 // Get seats by studio_id
 pub async fn get_seats_by_studio(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(studio_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Seat>>> {
     sqlx::query_as::<_, Seat>(
@@ -32,7 +32,7 @@ pub async fn get_seats_by_studio(
 
 // Get seats by showtime
 pub async fn get_seats_by_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(showtime_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<SeatWithBookingStatus>>> {
     // Query seats dengan LEFT JOIN ke booking_seats untuk cek status booking
@@ -80,7 +80,7 @@ pub async fn get_seats_by_showtime(
 
 // Get available seats only for a showtime
 pub async fn get_available_seats_by_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(showtime_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Seat>>> {
     sqlx::query_as::<_, Seat>(
@@ -111,7 +111,7 @@ pub async fn get_available_seats_by_showtime(
 
 // Generate seats studio 
 pub async fn generate_seats_for_studio(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Json(payload): Json<GenerateSeatsRequest>,
 ) -> Json<ApiResponse<GenerateSeatsResponse>> {
     let studio_check = sqlx::query_scalar::<_, i64>(

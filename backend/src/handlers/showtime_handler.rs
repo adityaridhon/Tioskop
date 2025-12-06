@@ -1,9 +1,9 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{extract::{Path, Extension}, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
 
 pub async fn get_all_showtimes(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
 ) -> Json<ApiResponse<Vec<Showtime>>> {
     sqlx::query_as::<_, Showtime>(
         "SELECT id, movie_id, studio_id, start_time, price FROM showtimes"
@@ -15,7 +15,7 @@ pub async fn get_all_showtimes(
 }
 
 pub async fn get_showtimes_by_movie(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(movie_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Showtime>>> {
     sqlx::query_as::<_, Showtime>(
@@ -29,7 +29,7 @@ pub async fn get_showtimes_by_movie(
 }
 
 pub async fn create_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Json(payload): Json<CreateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
     let insert_result = sqlx::query(
@@ -60,7 +60,7 @@ pub async fn create_showtime(
 }
 
 pub async fn update_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
@@ -105,7 +105,7 @@ pub async fn update_showtime(
 }
 
 pub async fn delete_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
     sqlx::query("DELETE FROM showtimes WHERE id = ?")

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Update Movie Posters</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #143C8C;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0f2d6b;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <h1>Update Movie Posters</h1>
+    <p>Klik tombol di bawah untuk update semua poster film ke path lokal (/film-*.webp)</p>
+    
+    <button onclick="updatePosters()">Update Posters</button>
+    
+    <div id="result"></div>
+
+    <script>
+        async function updatePosters() {
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Updating...';
+            resultDiv.className = '';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:3000/api/movies/update-posters', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    resultDiv.className = 'success';
+                    resultDiv.innerHTML = `
+                        <strong>Success!</strong><br>
+                        ${result.data.message}<br>
+                        Updated ${result.data.updated_count} movies
+                    `;
+                } else {
+                    resultDiv.className = 'error';
+                    resultDiv.innerHTML = `<strong>Error:</strong> ${result.message}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'error';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
