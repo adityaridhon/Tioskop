@@ -1,5 +1,6 @@
 use axum::{extract::State, Json};
-use sqlx::MySqlPool;
+use std::sync::Arc;
+use crate::config::DatabasePools;
 use crate::models::*;
 use jsonwebtoken::{EncodingKey, Header};
 use serde::Serialize;
@@ -40,9 +41,10 @@ fn generate_token(user_id: i64) -> Result<String, String> {
 
 // Register new user fn
 pub async fn register(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     Json(payload): Json<RegisterRequest>,
 ) -> Json<ApiResponse<UserInfo>> {
+    let pool = pools.get_central();
     if !payload.email.contains('@') {
         return Json(ApiResponse::error("Email tidak valid"));
     }
@@ -62,7 +64,7 @@ pub async fn register(
         "SELECT COUNT(*) FROM users WHERE email = ?"
     )
     .bind(&payload.email)
-    .fetch_one(&pool)
+    .fetch_one(pool)
     .await
     .unwrap_or(0);
 
@@ -77,7 +79,7 @@ pub async fn register(
     .bind(&payload.email)
     .bind(&hashed_password)
     .bind(&role)
-    .execute(&pool)
+    .execute(pool)
     .await;
 
     match insert_result {
@@ -100,9 +102,10 @@ pub async fn register(
 
 // Login user 
 pub async fn login(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     Json(payload): Json<LoginRequest>,
 ) -> Json<ApiResponse<LoginResponse>> {
+    let pool = pools.get_central();
     let hashed_password = hash_password(&payload.password);
 
     let user_result = sqlx::query_as::<_, User>(
@@ -110,7 +113,7 @@ pub async fn login(
     )
     .bind(&payload.email)
     .bind(&hashed_password)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await;
 
     match user_result {
@@ -120,7 +123,7 @@ pub async fn login(
                     "SELECT id FROM cinemas WHERE user_id = ? LIMIT 1"
                 )
                 .bind(user.id)
-                .fetch_optional(&pool)
+                .fetch_optional(pool)
                 .await
                 .unwrap_or(None)
             } else {
@@ -154,14 +157,15 @@ pub async fn login(
 
 // Get user profile 
 pub async fn get_profile(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     AuthUser(user_id): AuthUser,
 ) -> Json<ApiResponse<UserInfo>> {
+    let pool = pools.get_central();
     let user_result = sqlx::query_as::<_, User>(
         "SELECT id, name, email, password, role, CAST(created_at AS DATETIME) as created_at, CAST(updated_at AS DATETIME) as updated_at FROM users WHERE id = ?"
     )
     .bind(user_id)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await;
 
     match user_result {
@@ -171,7 +175,7 @@ pub async fn get_profile(
                     "SELECT id FROM cinemas WHERE user_id = ? LIMIT 1"
                 )
                 .bind(user.id)
-                .fetch_optional(&pool)
+                .fetch_optional(pool)
                 .await
                 .unwrap_or(None)
             } else {
@@ -195,14 +199,15 @@ pub async fn get_profile(
 
 // Get cinemas by admin 
 pub async fn get_admin_cinemas(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     user_id: i64,
 ) -> Json<ApiResponse<Vec<crate::models::studio::Cinema>>> {
+    let pool = pools.get_central();
     sqlx::query_as::<_, crate::models::studio::Cinema>(
         "SELECT id, name, address, city, created_at, user_id FROM cinemas WHERE user_id = ?"
     )
     .bind(user_id)
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await
     .map(|cinemas| Json(ApiResponse::success("Berhasil mengambil cinemas", cinemas)))
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))

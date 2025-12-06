@@ -1,36 +1,39 @@
 use axum::{extract::{Path, Query, State}, Json};
-use sqlx::MySqlPool;
+use std::sync::Arc;
+use crate::config::DatabasePools;
 use crate::models::*;
 
 pub async fn get_all_movies(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
 ) -> Json<ApiResponse<Vec<Movie>>> {
+    let pool = pools.get_central();
     sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies"
+        "SELECT id, title, NULL as genre, NULL as rating, duration, description, poster_url, release_date FROM movies"
     )
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await
     .map(|movies| Json(ApiResponse::success("Berhasil mengambil semua film", movies)))
     .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 pub async fn search_movies(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     Query(params): Query<SearchParams>,
 ) -> Json<ApiResponse<Vec<Movie>>> {
+    let pool = pools.get_central();
     let search_pattern = params.q
         .map(|q| format!("%{}%", q))
         .unwrap_or_else(|| "%".into());
 
     let movies = sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date
+        "SELECT id, title, NULL as genre, NULL as rating, duration, description, poster_url, release_date
         FROM movies
         WHERE title LIKE ?
         ORDER BY release_date DESC
         LIMIT 15"
     )
     .bind(search_pattern)
-    .fetch_all(&pool)
+    .fetch_all(pool)
     .await;
 
     match movies {
@@ -40,9 +43,10 @@ pub async fn search_movies(
 }
 
 pub async fn create_movie(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     Json(payload): Json<CreateMovieRequest>,
 ) -> Json<ApiResponse<Movie>> {
+    let pool = pools.get_central();
     let insert_result = sqlx::query(
         "INSERT INTO movies (title, genre, rating, duration, description, poster_url, release_date) VALUES (?, ?, ?, ?, ?, ?, ?)"
     )
@@ -53,7 +57,7 @@ pub async fn create_movie(
     .bind(&payload.description)
     .bind(&payload.poster_url)
     .bind(payload.release_date)
-    .execute(&pool)
+    .execute(pool)
     .await;
 
     match insert_result {
@@ -61,10 +65,10 @@ pub async fn create_movie(
             let movie_id = result.last_insert_id() as i64;
             
             sqlx::query_as::<_, Movie>(
-                "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
+                "SELECT id, title, NULL as genre, NULL as rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
             )
             .bind(movie_id)
-            .fetch_one(&pool)
+            .fetch_one(pool)
             .await
             .map(|movie| Json(ApiResponse::success("Berhasil menambahkan film", movie)))
             .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch created movie: {}", e))))
@@ -74,15 +78,16 @@ pub async fn create_movie(
 }
 
 pub async fn update_movie(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateMovieRequest>,
 ) -> Json<ApiResponse<Movie>> {
+    let pool = pools.get_central();
     let movie_exists = sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
+        "SELECT id, title, NULL as genre, NULL as rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
     )
     .bind(id)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await;
 
     match movie_exists {
@@ -106,15 +111,15 @@ pub async fn update_movie(
             .bind(&updated_poster_url)
             .bind(updated_release_date)
             .bind(id)
-            .execute(&pool)
+            .execute(pool)
             .await
             .ok();
 
             sqlx::query_as::<_, Movie>(
-                "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
+                "SELECT id, title, NULL as genre, NULL as rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
             )
             .bind(id)
-            .fetch_one(&pool)
+            .fetch_one(pool)
             .await
             .map(|movie| Json(ApiResponse::success("Berhasil mengupdate film", movie)))
             .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch updated movie: {}", e))))
@@ -125,21 +130,22 @@ pub async fn update_movie(
 }
 
 pub async fn delete_movie(
-    State(pool): State<MySqlPool>,
+    State(pools): State<Arc<DatabasePools>>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
+    let pool = pools.get_central();
     let movie_check = sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
+        "SELECT id, title, NULL as genre, NULL as rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
     )
     .bind(id)
-    .fetch_optional(&pool)
+    .fetch_optional(pool)
     .await;
 
     match movie_check {
         Ok(Some(_)) => {
             sqlx::query("DELETE FROM movies WHERE id = ?")
                 .bind(id)
-                .execute(&pool)
+                .execute(pool)
                 .await
                 .map(|_| Json(ApiResponse::success(
                     "Berhasil menghapus film",

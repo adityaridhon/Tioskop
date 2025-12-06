@@ -5,6 +5,7 @@ pub mod seat;
 pub mod booking;
 pub mod response;
 pub mod user;
+pub mod cinema;
 
 pub use movie::*;
 pub use showtime::*;
@@ -13,3 +14,4 @@ pub use seat::*;
 pub use booking::*;
 pub use response::*;
 pub use user::*;
+pub use cinema::*;

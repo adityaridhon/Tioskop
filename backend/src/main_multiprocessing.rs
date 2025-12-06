@@ -75,6 +75,7 @@ async fn main() {
     // Setup Router
     let app = Router::new()
         .route("/movies/:id/schedules", get(get_movie_schedules))
+        .route("/movies/:id/schedules-enum", get(get_movie_schedules_enum))  // Route baru untuk enum version
         .layer(cors)
         .with_state(state);
 
@@ -178,6 +179,143 @@ async fn fetch_from_specific_city(city: CityConfig, movie_id: i64) -> CitySchedu
                 city: city.name,
                 schedules: vec![],
                 status: "Offline/Error".to_string(),
+            }
+        }
+    }
+}
+
+// ==========================================
+// 5. ALTERNATIF DENGAN ENUM (REVISI DOSEN)
+// ==========================================
+// Fungsi baru ini menggunakan enum tanpa Vec
+// Fungsi lama di atas tetap dipertahankan
+
+// Enum untuk nama kota (fixed, tidak dinamis)
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+enum City {
+    Balikpapan,
+    Samarinda,
+}
+
+// Enum untuk status kota (menggantikan String)
+#[derive(Serialize, Debug, Clone)]
+#[serde(rename_all = "PascalCase")]
+enum CityStatus {
+    Online,
+    Offline,
+    Error,
+}
+
+// Struct response per kota dengan enum status
+#[derive(Serialize, Debug)]
+struct CityScheduleResponseEnum {
+    city: City,  // Menggunakan enum, bukan String
+    schedules: Vec<ShowtimeDetail>,
+    status: CityStatus,  // Menggunakan enum, bukan String
+}
+
+// Response akhir dengan fixed fields (tanpa Vec dinamis)
+#[derive(Serialize, Debug)]
+struct AllCitySchedules {
+    balikpapan: Option<CityScheduleResponseEnum>,
+    samarinda: Option<CityScheduleResponseEnum>,
+}
+
+// Handler baru menggunakan enum (alternatif dari get_movie_schedules)
+async fn get_movie_schedules_enum(
+    Path(movie_id): Path<i64>,
+    State(state): State<Arc<AppState>>,
+) -> Json<AllCitySchedules> {
+    
+    // A. Ambil daftar kota aktif dari Central DB
+    let cities = sqlx::query_as::<_, CityConfig>(
+        "SELECT name, db_url FROM cities WHERE is_active = true"
+    )
+    .fetch_all(&state.central_db)
+    .await
+    .unwrap_or_else(|_| vec![]);
+
+    println!("📡 [ENUM VERSION] Mencari jadwal untuk Film ID: {} di {} kota...", movie_id, cities.len());
+
+    // B. SCATTER: Buat Task Multiprocessing (Parallel)
+    let tasks: Vec<_> = cities.into_iter().map(|city| {
+        tokio::spawn(async move {
+            fetch_from_specific_city_enum(city, movie_id).await
+        })
+    }).collect();
+
+    // C. GATHER: Tunggu semua Task selesai
+    let results = join_all(tasks).await;
+
+    // D. Pisahkan hasil berdasarkan kota (tanpa Vec dinamis)
+    let mut balikpapan = None;
+    let mut samarinda = None;
+
+    for result in results {
+        if let Ok(city_response) = result {
+            match city_response.city {
+                City::Balikpapan => balikpapan = Some(city_response),
+                City::Samarinda => samarinda = Some(city_response),
+            }
+        }
+    }
+
+    Json(AllCitySchedules {
+        balikpapan,
+        samarinda,
+    })
+}
+
+// Worker function untuk enum version
+async fn fetch_from_specific_city_enum(city: CityConfig, movie_id: i64) -> CityScheduleResponseEnum {
+    let pool_result = MySqlPoolOptions::new()
+        .acquire_timeout(std::time::Duration::from_secs(2))
+        .connect_timeout(std::time::Duration::from_secs(2))
+        .connect(&city.db_url)
+        .await;
+
+    // Tentukan City enum berdasarkan nama
+    let city_enum = match city.name.as_str() {
+        "Balikpapan" => City::Balikpapan,
+        "Samarinda" => City::Samarinda,
+        _ => City::Balikpapan, // Default fallback
+    };
+
+    match pool_result {
+        Ok(pool) => {
+            let query = r#"
+                SELECT 
+                    c.name as cinema_name, 
+                    s.name as studio_name, 
+                    DATE_FORMAT(st.start_time, '%H:%i') as start_time, 
+                    st.price
+                FROM showtimes st
+                JOIN studios s ON st.studio_id = s.id
+                JOIN cinemas c ON s.cinema_id = c.id
+                WHERE st.global_movie_id = ?
+                ORDER BY st.start_time ASC
+            "#;
+
+            let schedules = sqlx::query_as::<_, ShowtimeDetail>(query)
+                .bind(movie_id)
+                .fetch_all(&pool)
+                .await
+                .unwrap_or_else(|_| vec![]);
+
+            pool.close().await;
+
+            CityScheduleResponseEnum {
+                city: city_enum,
+                schedules,
+                status: CityStatus::Online,  // Enum, bukan String
+            }
+        }
+        Err(e) => {
+            println!("⚠️ Gagal konek ke {}: {}", city.name, e);
+            CityScheduleResponseEnum {
+                city: city_enum,
+                schedules: vec![],
+                status: CityStatus::Offline,  // Enum, bukan String
             }
         }
     }
