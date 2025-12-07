@@ -221,6 +221,7 @@ impl JadwalWorkflowService {
 // ============================================================================
 
 pub mod workflow_service;
+pub mod booking;
 
 // ============================================================================
 // IMPLEMENTASI AKTUAL - Semua sudah diimplementasikan di workflow_service.rs
