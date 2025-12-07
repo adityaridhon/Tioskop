@@ -69,9 +69,10 @@
                                         :alt="selectedMovie.title"
                                         class="w-full h-full object-cover"
                                         @error="
-                                            (e) =>
-                                                (e.target.src =
-                                                    '/placeholder.jpg')
+                                            (e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                if (target) target.src = '/placeholder.jpg';
+                                            }
                                         "
                                         loading="lazy"
                                     />
@@ -104,69 +105,9 @@
                         </div>
                     </div>
 
-                    <!-- Schedule Selection -->
-                    <div class="bg-white rounded-xl shadow-md p-6">
-                        <h2 class="text-[#143C8C] mb-6">Pilih Jadwal Tayang</h2>
-
-                        <!-- Date Selection -->
-                        <div class="mb-6">
-                            <div class="flex items-center gap-2 mb-3">
-                                <Calendar class="w-5 h-5 text-[#143C8C]" />
-                                <h3 class="text-gray-700">Tanggal</h3>
-                            </div>
-                            <div class="flex gap-3 overflow-x-auto pb-2">
-                                <button
-                                    v-for="dateItem in dates"
-                                    :key="dateItem.full"
-                                    @click="selectedDate = dateItem.full"
-                                    class="flex-shrink-0 px-4 py-3 rounded-lg transition-all duration-200"
-                                    :class="
-                                        selectedDate === dateItem.full
-                                            ? 'bg-[#143C8C] text-white shadow-md'
-                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                    "
-                                >
-                                    <div class="text-center">
-                                        <div class="text-xs mb-1">
-                                            {{ dateItem.day }}
-                                        </div>
-                                        <div class="whitespace-nowrap">
-                                            {{ dateItem.date }}
-                                        </div>
-                                    </div>
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- Time Selection -->
-                        <div v-if="selectedDate">
-                            <div class="flex items-center gap-2 mb-3">
-                                <Clock class="w-5 h-5 text-[#143C8C]" />
-                                <h3 class="text-gray-700">Waktu</h3>
-                            </div>
-                            <div class="grid grid-cols-3 md:grid-cols-6 gap-3">
-                                <button
-                                    v-for="time in availableTimes"
-                                    :key="time"
-                                    @click="selectedTime = time"
-                                    class="py-3 px-4 rounded-lg transition-all duration-200"
-                                    :class="
-                                        selectedTime === time
-                                            ? 'bg-[#143C8C] text-white shadow-md'
-                                            : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
-                                    "
-                                >
-                                    {{ time }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
 
                     <!-- Seat Selection -->
-                    <div
-                        v-if="selectedDate && selectedTime"
-                        class="bg-white rounded-xl shadow-md p-6"
-                    >
+                    <div class="bg-white rounded-xl shadow-md p-6">
                         <h2 class="text-[#143C8C] mb-6">Pilih Tempat Duduk</h2>
 
                         <!-- Screen -->
@@ -279,40 +220,9 @@
                                     </p>
                                 </div>
 
-                                <!-- Schedule Info -->
-                                <div
-                                    v-if="selectedDate"
-                                    class="flex items-start gap-3 pb-4 border-b"
-                                >
-                                    <Calendar
-                                        class="w-5 h-5 text-[#143C8C] mt-0.5"
-                                    />
-                                    <div>
-                                        <p class="text-gray-600 text-sm">
-                                            Tanggal
-                                        </p>
-                                        <p class="text-gray-900">
-                                            {{ formatDate(selectedDate) }}
-                                        </p>
-                                    </div>
-                                </div>
 
-                                <div
-                                    v-if="selectedTime"
-                                    class="flex items-start gap-3 pb-4 border-b"
-                                >
-                                    <Clock
-                                        class="w-5 h-5 text-[#143C8C] mt-0.5"
-                                    />
-                                    <div>
-                                        <p class="text-gray-600 text-sm">
-                                            Waktu
-                                        </p>
-                                        <p class="text-gray-900">
-                                            {{ selectedTime }} WIB
-                                        </p>
-                                    </div>
-                                </div>
+
+
 
                                 <!-- Seats Info -->
                                 <div
@@ -384,11 +294,7 @@
                                 </button>
 
                                 <p
-                                    v-if="
-                                        selectedSeats.length === 0 &&
-                                        selectedDate &&
-                                        selectedTime
-                                    "
+                                    v-if="selectedSeats.length === 0"
                                     class="text-center text-sm text-gray-500 mt-2"
                                 >
                                     Pilih kursi untuk melanjutkan
@@ -406,6 +312,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+// @ts-ignore - useAuth is a JavaScript file without type declarations
 import { useAuth } from "@/composables/useAuth";
 import {
     ArrowLeft,
@@ -484,13 +391,25 @@ const fetchMovieData = async () => {
 };
 
 // Load movie data saat component mounted
-onMounted(() => {
-    fetchMovieData();
-    fetchShowtimes(parseInt(route.params.movieId as string));
+onMounted(async () => {
+    await fetchMovieData();
+    await fetchShowtimes(parseInt(route.params.movieId as string));
+    
+    // Get showtimeId from query params and fetch seats
+    const showtimeId = route.query.showtimeId;
+    if (showtimeId) {
+        const id = parseInt(showtimeId as string);
+        // Find showtime from list
+        const showtime = showtimeList.value.find(st => st.id === id);
+        if (showtime) {
+            selectedShowtime.value = showtime;
+            await fetchSeats(id);
+        }
+    }
 });
 
 const selectedDate = ref<string | null>(null);
-const selectedTime = ref<string | null>(null);
+
 const selectedSeats = ref<string[]>([]);
 
 // Data untuk schedule
@@ -526,55 +445,9 @@ const dates = computed(() => {
     return result.sort((a, b) => a.full.localeCompare(b.full));
 });
 
-const availableTimes = computed(() => {
-    if (!selectedDate.value || !showtimeList.value.length) return [];
 
-    return showtimeList.value
-        .filter((st) => {
-            const dateObj = new Date(st.start_time);
-            const fullDate = dateObj.toISOString().split("T")[0];
-            return fullDate === selectedDate.value;
-        })
-        .map((st) => {
-            const dateObj = new Date(st.start_time);
-            return dateObj
-                .toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                })
-                .replace(".", ":");
-        })
-        .sort();
-});
 
-watch([selectedDate, selectedTime], async ([newDate, newTime]) => {
-    if (newDate && newTime) {
-        const showtime = showtimeList.value.find((st) => {
-            const dateObj = new Date(st.start_time);
-            const dateStr = dateObj.toISOString().split("T")[0];
-            const timeStr = dateObj
-                .toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                })
-                .replace(".", ":");
-            return dateStr === newDate && timeStr === newTime;
-        });
 
-        if (showtime) {
-            selectedShowtime.value = showtime;
-            await fetchSeats(showtime.id);
-        } else {
-            selectedShowtime.value = null;
-            occupiedSeats.value = [];
-            allSeats.value = [];
-        }
-    } else {
-        selectedShowtime.value = null;
-        occupiedSeats.value = [];
-        allSeats.value = [];
-    }
-});
 
 // Data kursi
 const rows = ["A", "B", "C", "D", "E", "F", "G", "H"];
@@ -702,8 +575,6 @@ const handleConfirm = async () => {
                     movieId: route.params.movieId,
                     showtimeId: selectedShowtime.value.id,
                     selectedSeats: selectedSeats.value,
-                    selectedDate: selectedDate.value,
-                    selectedTime: selectedTime.value,
                 })
             );
             router.push("/login");
@@ -768,7 +639,7 @@ const handleConfirm = async () => {
         isLoading.value = true;
 
         // Prepare headers
-        const headers = {
+        const headers: Record<string, string> = {
             "Content-Type": "application/json",
         };
 
@@ -790,8 +661,6 @@ const handleConfirm = async () => {
             alert("Pemesanan berhasil!");
             // Reset selection or navigate away
             selectedSeats.value = [];
-            selectedDate.value = null;
-            selectedTime.value = null;
             router.push("/");
         } else {
             alert(result.message || "Gagal membuat pemesanan");
@@ -807,8 +676,6 @@ const handleConfirm = async () => {
 const canConfirm = computed(
     () =>
         !!selectedMovie.value.id &&
-        !!selectedDate.value &&
-        !!selectedTime.value &&
         !!selectedShowtime.value &&
         selectedSeats.value.length > 0
 );
