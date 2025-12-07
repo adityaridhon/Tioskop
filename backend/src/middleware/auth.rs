@@ -1,8 +1,8 @@
-use axum::http::request::Parts;
-use axum::http::StatusCode;
 use axum::extract::FromRequestParts;
+use axum::http::StatusCode;
+use axum::http::request::Parts;
+use jsonwebtoken::{DecodingKey, Validation, decode};
 use serde::Deserialize;
-use jsonwebtoken::{decode, DecodingKey, Validation};
 
 #[derive(Deserialize)]
 struct Claims {
@@ -36,12 +36,21 @@ where
 
             let token = &auth_header[7..];
 
-            let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "tioskop_dev_secret".to_string());
+            let secret =
+                std::env::var("JWT_SECRET").unwrap_or_else(|_| "tioskop_dev_secret".to_string());
 
-            let token_data = decode::<Claims>(token, &DecodingKey::from_secret(secret.as_bytes()), &Validation::default())
-                .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token"))?;
+            let token_data = decode::<Claims>(
+                token,
+                &DecodingKey::from_secret(secret.as_bytes()),
+                &Validation::default(),
+            )
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token"))?;
 
-            let user_id = token_data.claims.sub.parse::<i64>().map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token sub"))?;
+            let user_id = token_data
+                .claims
+                .sub
+                .parse::<i64>()
+                .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token sub"))?;
 
             Ok(AuthUser(user_id))
         }

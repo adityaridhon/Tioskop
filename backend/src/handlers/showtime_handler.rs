@@ -1,12 +1,12 @@
-use axum::{extract::{Path, State}, Json};
+use axum::{extract::{Path, Extension}, Json};
 use sqlx::MySqlPool;
 use crate::models::*;
 
 pub async fn get_all_showtimes(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
 ) -> Json<ApiResponse<Vec<Showtime>>> {
     sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes"
+        "SELECT id, global_movie_id, studio_id, start_time, price FROM showtimes"
     )
     .fetch_all(&pool)
     .await
@@ -15,11 +15,11 @@ pub async fn get_all_showtimes(
 }
 
 pub async fn get_showtimes_by_movie(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(movie_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Showtime>>> {
     sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE movie_id = ?"
+        "SELECT id, global_movie_id, studio_id, start_time, price FROM showtimes WHERE global_movie_id = ?"
     )
     .bind(movie_id)
     .fetch_all(&pool)
@@ -29,13 +29,13 @@ pub async fn get_showtimes_by_movie(
 }
 
 pub async fn create_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Json(payload): Json<CreateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
     let insert_result = sqlx::query(
-        "INSERT INTO showtimes (movie_id, studio_id, start_time, price) VALUES (?, ?, ?, ?)"
+        "INSERT INTO showtimes (global_movie_id, studio_id, start_time, price) VALUES (?, ?, ?, ?)"
     )
-    .bind(payload.movie_id)
+    .bind(payload.global_movie_id)
     .bind(payload.studio_id)
     .bind(payload.start_time)
     .bind(payload.price)
@@ -47,7 +47,7 @@ pub async fn create_showtime(
             let showtime_id = result.last_insert_id() as i64;
             
             sqlx::query_as::<_, Showtime>(
-                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
+                "SELECT id, global_movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
             )
             .bind(showtime_id)
             .fetch_one(&pool)
@@ -60,12 +60,12 @@ pub async fn create_showtime(
 }
 
 pub async fn update_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
     let showtime_exists = sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
+        "SELECT id, global_movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
     )
     .bind(id)
     .fetch_optional(&pool)
@@ -73,13 +73,13 @@ pub async fn update_showtime(
 
     match showtime_exists {
         Ok(Some(existing_showtime)) => {
-            let updated_movie_id = payload.movie_id.or(existing_showtime.movie_id);
+            let updated_movie_id = payload.global_movie_id.or(existing_showtime.global_movie_id);
             let updated_studio_id = payload.studio_id.or(existing_showtime.studio_id);
             let updated_start_time = payload.start_time.or(existing_showtime.start_time);
             let updated_price = payload.price.or(existing_showtime.price);
 
             sqlx::query(
-                "UPDATE showtimes SET movie_id = ?, studio_id = ?, start_time = ?, price = ? WHERE id = ?"
+                "UPDATE showtimes SET global_movie_id = ?, studio_id = ?, start_time = ?, price = ? WHERE id = ?"
             )
             .bind(updated_movie_id)
             .bind(updated_studio_id)
@@ -91,7 +91,7 @@ pub async fn update_showtime(
             .ok();
 
             sqlx::query_as::<_, Showtime>(
-                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
+                "SELECT id, global_movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?"
             )
             .bind(id)
             .fetch_one(&pool)
@@ -105,7 +105,7 @@ pub async fn update_showtime(
 }
 
 pub async fn delete_showtime(
-    State(pool): State<MySqlPool>,
+    Extension(pool): Extension<MySqlPool>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
     sqlx::query("DELETE FROM showtimes WHERE id = ?")

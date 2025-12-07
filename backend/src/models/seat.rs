@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 
-#[derive(Serialize, FromRow, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Seat {
     pub id: i64,
     pub studio_id: i64,
@@ -26,8 +25,8 @@ pub struct SeatWithBookingStatus {
 #[derive(Deserialize)]
 pub struct GenerateSeatsRequest {
     pub studio_id: i64,
-    pub rows: i32,          
-    pub seats_per_row: i32, 
+    pub rows: i32,
+    pub seats_per_row: i32,
 }
 
 #[derive(Serialize)]
