@@ -51,9 +51,10 @@ let scrollTimeout = null;
 
 // ===== Navigation Function =====
 const navigateToBooking = (movieId) => {
-    if (!isDragging.value) {
-        router.push({ name: "PemesananFilm", params: { movieId } });
-    }
+    router.push({
+        name: "MovieDetail",
+        params: { movieId },
+    });
 };
 
 // ===== Computed Properties =====

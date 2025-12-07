@@ -355,11 +355,7 @@
                                 </button>
 
                                 <p
-                                    v-if="
-                                        selectedSeats.length === 0 &&
-                                        selectedDate &&
-                                        selectedTime
-                                    "
+                                    v-if="selectedSeats.length === 0"
                                     class="text-center text-sm text-gray-500 mt-2"
                                 >
                                     Pilih kursi untuk melanjutkan
@@ -377,6 +373,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
+// @ts-ignore - useAuth is a JavaScript file without type declarations
 import { useAuth } from "@/composables/useAuth";
 import {
     ArrowLeft,
@@ -456,13 +453,25 @@ const fetchMovieData = async () => {
 };
 
 // Load movie data saat component mounted
-onMounted(() => {
-    fetchMovieData();
-    fetchShowtimes(parseInt(route.params.movieId as string));
+onMounted(async () => {
+    await fetchMovieData();
+    await fetchShowtimes(parseInt(route.params.movieId as string));
+    
+    // Get showtimeId from query params and fetch seats
+    const showtimeId = route.query.showtimeId;
+    if (showtimeId) {
+        const id = parseInt(showtimeId as string);
+        // Find showtime from list
+        const showtime = showtimeList.value.find(st => st.id === id);
+        if (showtime) {
+            selectedShowtime.value = showtime;
+            await fetchSeats(id);
+        }
+    }
 });
 
 const selectedDate = ref<string | null>(null);
-const selectedTime = ref<string | null>(null);
+
 const selectedSeats = ref<string[]>([]);
 
 // Data untuk schedule
@@ -498,55 +507,9 @@ const dates = computed(() => {
     return result.sort((a, b) => a.full.localeCompare(b.full));
 });
 
-const availableTimes = computed(() => {
-    if (!selectedDate.value || !showtimeList.value.length) return [];
 
-    return showtimeList.value
-        .filter((st) => {
-            const dateObj = new Date(st.start_time);
-            const fullDate = dateObj.toISOString().split("T")[0];
-            return fullDate === selectedDate.value;
-        })
-        .map((st) => {
-            const dateObj = new Date(st.start_time);
-            return dateObj
-                .toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                })
-                .replace(".", ":");
-        })
-        .sort();
-});
 
-watch([selectedDate, selectedTime], async ([newDate, newTime]) => {
-    if (newDate && newTime) {
-        const showtime = showtimeList.value.find((st) => {
-            const dateObj = new Date(st.start_time);
-            const dateStr = dateObj.toISOString().split("T")[0];
-            const timeStr = dateObj
-                .toLocaleTimeString("id-ID", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                })
-                .replace(".", ":");
-            return dateStr === newDate && timeStr === newTime;
-        });
 
-        if (showtime) {
-            selectedShowtime.value = showtime;
-            await fetchSeats(showtime.id);
-        } else {
-            selectedShowtime.value = null;
-            occupiedSeats.value = [];
-            allSeats.value = [];
-        }
-    } else {
-        selectedShowtime.value = null;
-        occupiedSeats.value = [];
-        allSeats.value = [];
-    }
-});
 
 // Data kursi
 const rows = ["H", "G", "F", "E", "D", "C", "B", "A"];
@@ -681,8 +644,6 @@ const handleConfirm = async () => {
                     movieId: route.params.movieId,
                     showtimeId: selectedShowtime.value.id,
                     selectedSeats: selectedSeats.value,
-                    selectedDate: selectedDate.value,
-                    selectedTime: selectedTime.value,
                 })
             );
             router.push("/login");
@@ -769,8 +730,6 @@ const handleConfirm = async () => {
             alert("Pemesanan berhasil!");
             // Reset selection or navigate away
             selectedSeats.value = [];
-            selectedDate.value = null;
-            selectedTime.value = null;
             router.push("/");
         } else {
             alert(result.message || "Gagal membuat pemesanan");
@@ -786,8 +745,6 @@ const handleConfirm = async () => {
 const canConfirm = computed(
     () =>
         !!selectedMovie.value.id &&
-        !!selectedDate.value &&
-        !!selectedTime.value &&
         !!selectedShowtime.value &&
         selectedSeats.value.length > 0
 );

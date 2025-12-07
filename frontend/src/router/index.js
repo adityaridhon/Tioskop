@@ -9,12 +9,18 @@ import Loginpages from "../pages/loginpages.vue";
 import Regispage from "../pages/regispages.vue";
 import CinemaSchedule from "../pages/CinemaSchedule.vue";
 import CinemaList from "../pages/CinemaList.vue";
+import MovieDetail from "../pages/MovieDetail.vue";
 
 const routes = [
     {
         path: "/",
         name: "Home",
         component: Home,
+    },
+    {
+        path: "/movie/:movieId",
+        name: "MovieDetail",
+        component: MovieDetail,
     },
     {
         path: "/pemesanan/:movieId",
