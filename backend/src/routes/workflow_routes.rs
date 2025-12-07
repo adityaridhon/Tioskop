@@ -190,8 +190,8 @@ pub async fn get_jadwal_stats(State(state): State<AppState>) -> impl IntoRespons
 pub fn workflow_routes() -> Router<AppState> {
     Router::new()
         .route("/jadwal/terdekat", get(get_jadwal_terdekat))
-        .route("/jadwal/studio/:studio_id", get(get_jadwal_by_studio))
-        .route("/jadwal/movie/:movie_id", get(get_jadwal_by_movie))
+        .route("/jadwal/studio/{studio_id}", get(get_jadwal_by_studio))
+        .route("/jadwal/movie/{movie_id}", get(get_jadwal_by_movie))
         .route("/jadwal/stats", get(get_jadwal_stats))
 }
 

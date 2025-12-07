@@ -3,9 +3,9 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
-use sqlx::MySqlPool;
+use sea_orm::DatabaseConnection;
 
-pub fn studio_routes() -> Router<MySqlPool> {
+pub fn studio_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/studios", get(get_all_studios).post(create_studio))
         .route(

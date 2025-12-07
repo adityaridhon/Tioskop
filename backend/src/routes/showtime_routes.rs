@@ -3,9 +3,9 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
-use sqlx::MySqlPool;
+use sea_orm::DatabaseConnection;
 
-pub fn showtime_routes() -> Router<MySqlPool> {
+pub fn showtime_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route(
             "/api/showtimes",

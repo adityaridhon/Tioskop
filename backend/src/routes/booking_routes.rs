@@ -3,9 +3,9 @@ use axum::{
     Router,
     routing::{get, post, put},
 };
-use sqlx::MySqlPool;
+use sea_orm::DatabaseConnection;
 
-pub fn booking_routes() -> Router<MySqlPool> {
+pub fn booking_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/bookings", get(get_all_bookings).post(create_booking))
         .route("/api/bookings/{id}", get(get_booking_by_id))

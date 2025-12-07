@@ -1,125 +1,109 @@
+use crate::entities::{Movie, MoviesEntity};
 use crate::models::*;
 use axum::{
-    Json,
     extract::{Path, Query, State},
+    Json,
 };
-use sqlx::MySqlPool;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, QueryFilter, ColumnTrait, Set, QueryOrder, QuerySelect};
 
-pub async fn get_all_movies(State(pool): State<MySqlPool>) -> Json<ApiResponse<Vec<Movie>>> {
-    sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies"
-    )
-    .fetch_all(&pool)
-    .await
-    .map(|movies| Json(ApiResponse::success("Berhasil mengambil semua film", movies)))
-    .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+pub async fn get_all_movies(State(db): State<DatabaseConnection>) -> Json<ApiResponse<Vec<Movie>>> {
+    MoviesEntity::find()
+        .all(&db)
+        .await
+        .map(|movies| Json(ApiResponse::success("Berhasil mengambil semua film", movies)))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 pub async fn search_movies(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Query(params): Query<SearchParams>,
 ) -> Json<ApiResponse<Vec<Movie>>> {
+    use crate::entities::movies::Column;
+
     let search_pattern = params
         .q
         .map(|q| format!("%{}%", q))
         .unwrap_or_else(|| "%".into());
 
-    let movies = sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date
-        FROM movies
-        WHERE title LIKE ?
-        ORDER BY release_date DESC
-        LIMIT 15",
-    )
-    .bind(search_pattern)
-    .fetch_all(&pool)
-    .await;
-
-    match movies {
-        Ok(data) => Json(ApiResponse::success("OK", data)),
-        Err(e) => Json(ApiResponse::error(&e.to_string())),
-    }
+    MoviesEntity::find()
+        .filter(Column::Title.like(&search_pattern))
+        .order_by_desc(Column::ReleaseDate)
+        .limit(15)
+        .all(&db)
+        .await
+        .map(|movies| Json(ApiResponse::success("OK", movies)))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&e.to_string())))
 }
 
 pub async fn create_movie(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateMovieRequest>,
 ) -> Json<ApiResponse<Movie>> {
-    let insert_result = sqlx::query(
-        "INSERT INTO movies (title, genre, rating, duration, description, poster_url, release_date) VALUES (?, ?, ?, ?, ?, ?, ?)"
-    )
-    .bind(&payload.title)
-    .bind(&payload.genre)
-    .bind(&payload.rating)
-    .bind(payload.duration)
-    .bind(&payload.description)
-    .bind(&payload.poster_url)
-    .bind(payload.release_date)
-    .execute(&pool)
-    .await;
+    use crate::entities::movies::ActiveModel;
 
-    match insert_result {
-        Ok(result) => {
-            let movie_id = result.last_insert_id() as i64;
+    let new_movie = ActiveModel {
+        title: Set(payload.title),
+        genre: Set(payload.genre),
+        rating: Set(payload.rating),
+        duration: Set(payload.duration),
+        description: Set(payload.description),
+        poster_url: Set(payload.poster_url),
+        release_date: Set(payload.release_date),
+        ..Default::default()
+    };
 
-            sqlx::query_as::<_, Movie>(
-                "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
-            )
-            .bind(movie_id)
-            .fetch_one(&pool)
-            .await
-            .map(|movie| Json(ApiResponse::success("Berhasil menambahkan film", movie)))
-            .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch created movie: {}", e))))
-        }
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
-    }
+    new_movie
+        .insert(&db)
+        .await
+        .map(|movie| Json(ApiResponse::success("Berhasil menambahkan film", movie)))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 pub async fn update_movie(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateMovieRequest>,
 ) -> Json<ApiResponse<Movie>> {
-    let movie_exists = sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
-    )
-    .bind(id)
-    .fetch_optional(&pool)
-    .await;
+    use crate::entities::movies::ActiveModel;
+
+    let movie_exists = MoviesEntity::find_by_id(id).one(&db).await;
 
     match movie_exists {
         Ok(Some(existing_movie)) => {
-            let updated_title = payload.title.unwrap_or(existing_movie.title);
-            let updated_genre = payload.genre.or(existing_movie.genre);
-            let updated_rating = payload.rating.or(existing_movie.rating);
-            let updated_duration = payload.duration.or(existing_movie.duration);
-            let updated_description = payload.description.or(existing_movie.description);
-            let updated_poster_url = payload.poster_url.or(existing_movie.poster_url);
-            let updated_release_date = payload.release_date.or(existing_movie.release_date);
+            let mut active_movie: ActiveModel = existing_movie.into();
 
-            sqlx::query(
-                "UPDATE movies SET title = ?, genre = ?, rating = ?, duration = ?, description = ?, poster_url = ?, release_date = ? WHERE id = ?"
-            )
-            .bind(&updated_title)
-            .bind(&updated_genre)
-            .bind(&updated_rating)
-            .bind(updated_duration)
-            .bind(&updated_description)
-            .bind(&updated_poster_url)
-            .bind(updated_release_date)
-            .bind(id)
-            .execute(&pool)
-            .await
-            .ok();
+            if let Some(title) = payload.title {
+                active_movie.title = Set(title);
+            }
+            if payload.genre.is_some() {
+                active_movie.genre = Set(payload.genre);
+            }
+            if payload.rating.is_some() {
+                active_movie.rating = Set(payload.rating);
+            }
+            if payload.duration.is_some() {
+                active_movie.duration = Set(payload.duration);
+            }
+            if payload.description.is_some() {
+                active_movie.description = Set(payload.description);
+            }
+            if payload.poster_url.is_some() {
+                active_movie.poster_url = Set(payload.poster_url);
+            }
+            if payload.release_date.is_some() {
+                active_movie.release_date = Set(payload.release_date);
+            }
 
-            sqlx::query_as::<_, Movie>(
-                "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
-            )
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map(|movie| Json(ApiResponse::success("Berhasil mengupdate film", movie)))
-            .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch updated movie: {}", e))))
+            active_movie
+                .update(&db)
+                .await
+                .map(|movie| Json(ApiResponse::success("Berhasil mengupdate film", movie)))
+                .unwrap_or_else(|e| {
+                    Json(ApiResponse::error(&format!(
+                        "Failed to update movie: {}",
+                        e
+                    )))
+                })
         }
         Ok(None) => Json(ApiResponse::error(&format!(
             "Film dengan id {} tidak ditemukan",
@@ -130,33 +114,32 @@ pub async fn update_movie(
 }
 
 pub async fn delete_movie(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
-    let movie_check = sqlx::query_as::<_, Movie>(
-        "SELECT id, title, genre, rating, duration, description, poster_url, release_date FROM movies WHERE id = ?"
-    )
-    .bind(id)
-    .fetch_optional(&pool)
-    .await;
+    use crate::entities::movies::ActiveModel;
+
+    let movie_check = MoviesEntity::find_by_id(id).one(&db).await;
 
     match movie_check {
-        Ok(Some(_)) => sqlx::query("DELETE FROM movies WHERE id = ?")
-            .bind(id)
-            .execute(&pool)
-            .await
-            .map(|_| {
-                Json(ApiResponse::success(
-                    "Berhasil menghapus film",
-                    DeleteResponse { id, deleted: true },
-                ))
-            })
-            .unwrap_or_else(|e| {
-                Json(ApiResponse::error(&format!(
-                    "Failed to delete movie: {}",
-                    e
-                )))
-            }),
+        Ok(Some(movie)) => {
+            let active_movie: ActiveModel = movie.into();
+            active_movie
+                .delete(&db)
+                .await
+                .map(|_| {
+                    Json(ApiResponse::success(
+                        "Berhasil menghapus film",
+                        DeleteResponse { id, deleted: true },
+                    ))
+                })
+                .unwrap_or_else(|e| {
+                    Json(ApiResponse::error(&format!(
+                        "Failed to delete movie: {}",
+                        e
+                    )))
+                })
+        }
         Ok(None) => Json(ApiResponse::error(&format!(
             "Film dengan id {} tidak ditemukan",
             id

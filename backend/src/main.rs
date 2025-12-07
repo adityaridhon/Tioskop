@@ -1,4 +1,3 @@
-mod config;
 mod entities;
 mod handlers;
 mod middleware;
@@ -24,11 +23,7 @@ use tower_http::cors::{Any, CorsLayer};
 async fn main() {
     dotenv().ok();
 
-    // Setup existing database pool
-    let pool = config::create_pool().await;
-    println!("✓ Connected to existing database pool");
-
-    // Setup SeaORM database connection for workflow
+    // Setup SeaORM database connection (ONLY ONE CONNECTION NOW!)
     let database_url =
         std::env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env file");
 
@@ -53,15 +48,15 @@ async fn main() {
         .allow_methods(Any)
         .allow_headers(Any);
 
-    // Build existing routes with old pool (backward compatible)
-    let existing_routes = Router::new()
+    // Build all routes with SeaORM DatabaseConnection
+    let app_routes = Router::new()
         .merge(auth_routes())
         .merge(movie_routes())
         .merge(showtime_routes())
         .merge(studio_routes())
         .merge(seat_routes())
         .merge(booking_routes())
-        .with_state(pool);
+        .with_state(db_connection);
 
     // Build workflow routes with SeaORM
     let workflow_router = Router::new()
@@ -70,20 +65,36 @@ async fn main() {
 
     // Combine all routes
     let app = Router::new()
-        .merge(existing_routes)
+        .merge(app_routes)
         .merge(workflow_router)
         .layer(cors);
 
-    println!("✓ All routes configured");
+    println!("✓ All routes configured with SeaORM");
 
     // Run server
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
     println!("\n🚀 Server running on http://{}", addr);
-    println!("\n📋 Workflow Endpoints:");
-    println!("   GET  /api/workflow/jadwal/terdekat");
-    println!("   GET  /api/workflow/jadwal/studio/:studio_id");
-    println!("   GET  /api/workflow/jadwal/movie/:movie_id");
-    println!("   GET  /api/workflow/jadwal/stats");
+    println!("\n📋 API Endpoints:");
+    println!("   Auth:");
+    println!("     POST /api/auth/register");
+    println!("     POST /api/auth/login");
+    println!("   Movies:");
+    println!("     GET    /api/movies");
+    println!("     POST   /api/movies");
+    println!("     GET    /api/movies/search");
+    println!("     PATCH  /api/movies/:id");
+    println!("     DELETE /api/movies/:id");
+    println!("   Showtimes:");
+    println!("     GET    /api/showtimes");
+    println!("     POST   /api/showtimes");
+    println!("     GET    /api/showtimes/movie/:movie_id");
+    println!("     PATCH  /api/showtimes/:id");
+    println!("     DELETE /api/showtimes/:id");
+    println!("   Workflow:");
+    println!("     GET  /api/workflow/jadwal/terdekat");
+    println!("     GET  /api/workflow/jadwal/studio/:studio_id");
+    println!("     GET  /api/workflow/jadwal/movie/:movie_id");
+    println!("     GET  /api/workflow/jadwal/stats");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

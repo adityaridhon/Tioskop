@@ -3,9 +3,9 @@ use axum::{
     Router,
     routing::{get, post},
 };
-use sqlx::MySqlPool;
+use sea_orm::DatabaseConnection;
 
-pub fn seat_routes() -> Router<MySqlPool> {
+pub fn seat_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/seats", get(get_all_seats))
         .route("/api/seats/generate", post(generate_seats_for_studio))

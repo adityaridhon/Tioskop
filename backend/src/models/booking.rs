@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 
-#[derive(Serialize, FromRow, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Booking {
     pub id: i64,
     pub user_id: Option<i64>,
@@ -9,11 +8,10 @@ pub struct Booking {
     pub booking_code: Option<String>,
     pub total_price: Option<rust_decimal::Decimal>,
     pub payment_status: Option<String>,
-    #[sqlx(default)]
     pub created_at: Option<chrono::NaiveDateTime>,
 }
 
-#[derive(Serialize, FromRow, Clone)]
+#[derive(Serialize, Clone)]
 pub struct BookingSeat {
     pub id: i64,
     pub booking_id: Option<i64>,

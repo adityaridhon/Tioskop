@@ -4,9 +4,9 @@ use axum::{
     Router,
     routing::{delete, get, post, put},
 };
-use sqlx::MySqlPool;
+use sea_orm::DatabaseConnection;
 
-pub fn movie_routes() -> Router<MySqlPool> {
+pub fn movie_routes() -> Router<DatabaseConnection> {
     Router::new()
         .route("/api/movies/all", get(get_all_movies))
         .route("/api/movies", get(search_movies).post(create_movie))

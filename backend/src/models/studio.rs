@@ -1,7 +1,6 @@
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 
-#[derive(Serialize, FromRow, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Studio {
     pub id: i64,
     pub cinema_id: Option<i64>,
@@ -10,7 +9,7 @@ pub struct Studio {
     pub r#type: Option<String>,
 }
 
-#[derive(Serialize, FromRow, Clone)]
+#[derive(Serialize, Clone)]
 pub struct Cinema {
     pub id: i64,
     pub name: String,

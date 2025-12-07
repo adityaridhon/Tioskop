@@ -1,134 +1,115 @@
+use crate::entities::{Showtime, ShowtimesEntity};
 use crate::models::*;
 use axum::{
-    Json,
     extract::{Path, State},
+    Json,
 };
-use sqlx::MySqlPool;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, QueryFilter, ColumnTrait};
 
-pub async fn get_all_showtimes(State(pool): State<MySqlPool>) -> Json<ApiResponse<Vec<Showtime>>> {
-    sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes",
-    )
-    .fetch_all(&pool)
-    .await
-    .map(|showtimes| {
-        Json(ApiResponse::success(
-            "Berhasil mengambil semua showtimes",
-            showtimes,
-        ))
-    })
-    .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+pub async fn get_all_showtimes(State(db): State<DatabaseConnection>) -> Json<ApiResponse<Vec<Showtime>>> {
+    ShowtimesEntity::find()
+        .all(&db)
+        .await
+        .map(|showtimes| {
+            Json(ApiResponse::success(
+                "Berhasil mengambil semua showtimes",
+                showtimes,
+            ))
+        })
+        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 pub async fn get_showtimes_by_movie(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(movie_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Showtime>>> {
-    sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE movie_id = ?",
-    )
-    .bind(movie_id)
-    .fetch_all(&pool)
-    .await
-    .map(|showtimes| {
-        Json(ApiResponse::success(
-            "Berhasil mengambil showtimes untuk film ini",
-            showtimes,
-        ))
-    })
-    .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+    use crate::entities::showtimes::Column;
+
+    ShowtimesEntity::find()
+        .filter(Column::MovieId.eq(movie_id))
+        .all(&db)
+        .await
+        .map(|showtimes| {
+            Json(ApiResponse::success(
+                "Berhasil mengambil showtimes untuk film ini",
+                showtimes,
+            ))
+        })
+        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 pub async fn create_showtime(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
-    let insert_result = sqlx::query(
-        "INSERT INTO showtimes (movie_id, studio_id, start_time, price) VALUES (?, ?, ?, ?)",
-    )
-    .bind(payload.movie_id)
-    .bind(payload.studio_id)
-    .bind(payload.start_time)
-    .bind(payload.price)
-    .execute(&pool)
-    .await;
+    use crate::entities::showtimes::ActiveModel;
 
-    match insert_result {
-        Ok(result) => {
-            let showtime_id = result.last_insert_id() as i64;
+    let new_showtime = ActiveModel {
+        movie_id: Set(Some(payload.movie_id)),
+        studio_id: Set(Some(payload.studio_id)),
+        start_time: Set(Some(payload.start_time.and_local_timezone(chrono::Local).unwrap())),
+        price: Set(Some(payload.price)),
+        ..Default::default()
+    };
 
-            sqlx::query_as::<_, Showtime>(
-                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?",
-            )
-            .bind(showtime_id)
-            .fetch_one(&pool)
-            .await
-            .map(|showtime| {
-                Json(ApiResponse::success(
-                    "Berhasil menambahkan showtime",
-                    showtime,
-                ))
-            })
-            .unwrap_or_else(|e| {
-                Json(ApiResponse::error(&format!(
-                    "Failed to fetch created showtime: {}",
-                    e
-                )))
-            })
-        }
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
-    }
+    new_showtime
+        .insert(&db)
+        .await
+        .map(|showtime| {
+            Json(ApiResponse::success(
+                "Berhasil menambahkan showtime",
+                showtime,
+            ))
+        })
+        .unwrap_or_else(|e| {
+            Json(ApiResponse::error(&format!(
+                "Database error: {}",
+                e
+            )))
+        })
 }
 
 pub async fn update_showtime(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateShowtimeRequest>,
 ) -> Json<ApiResponse<Showtime>> {
-    let showtime_exists = sqlx::query_as::<_, Showtime>(
-        "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?",
-    )
-    .bind(id)
-    .fetch_optional(&pool)
-    .await;
+    use crate::entities::showtimes::ActiveModel;
+
+    let showtime_exists = ShowtimesEntity::find_by_id(id).one(&db).await;
 
     match showtime_exists {
         Ok(Some(existing_showtime)) => {
-            let updated_movie_id = payload.movie_id.or(existing_showtime.movie_id);
-            let updated_studio_id = payload.studio_id.or(existing_showtime.studio_id);
-            let updated_start_time = payload.start_time.or(existing_showtime.start_time);
-            let updated_price = payload.price.or(existing_showtime.price);
+            let mut active_showtime: ActiveModel = existing_showtime.into();
 
-            sqlx::query(
-                "UPDATE showtimes SET movie_id = ?, studio_id = ?, start_time = ?, price = ? WHERE id = ?"
-            )
-            .bind(updated_movie_id)
-            .bind(updated_studio_id)
-            .bind(updated_start_time)
-            .bind(updated_price)
-            .bind(id)
-            .execute(&pool)
-            .await
-            .ok();
+            if let Some(movie_id) = payload.movie_id {
+                active_showtime.movie_id = Set(Some(movie_id));
+            }
+            if let Some(studio_id) = payload.studio_id {
+                active_showtime.studio_id = Set(Some(studio_id));
+            }
+            if let Some(start_time) = payload.start_time {
+                active_showtime.start_time = Set(Some(start_time.and_local_timezone(chrono::Local).unwrap()));
+            }
+            if let Some(price) = payload.price {
+                active_showtime.price = Set(Some(price));
+            }
 
-            sqlx::query_as::<_, Showtime>(
-                "SELECT id, movie_id, studio_id, start_time, price FROM showtimes WHERE id = ?",
-            )
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map(|showtime| {
-                Json(ApiResponse::success(
-                    "Berhasil mengupdate showtime",
-                    showtime,
-                ))
-            })
-            .unwrap_or_else(|e| {
-                Json(ApiResponse::error(&format!(
-                    "Failed to fetch updated showtime: {}",
-                    e
-                )))
-            })
+            active_showtime
+                .update(&db)
+                .await
+                .map(|showtime| {
+                    Json(ApiResponse::success(
+                        "Berhasil mengupdate showtime",
+                        showtime,
+                    ))
+                })
+                .unwrap_or_else(|e| {
+                    Json(ApiResponse::error(&format!(
+                        "Failed to update showtime: {}",
+                        e
+                    )))
+                })
         }
         Ok(None) => Json(ApiResponse::error(&format!(
             "Showtime dengan id {} tidak ditemukan",
@@ -139,26 +120,31 @@ pub async fn update_showtime(
 }
 
 pub async fn delete_showtime(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
-    sqlx::query("DELETE FROM showtimes WHERE id = ?")
-        .bind(id)
-        .execute(&pool)
-        .await
-        .map(|result| {
-            let deleted = result.rows_affected() > 0;
-            if deleted {
-                Json(ApiResponse::success(
-                    "Berhasil menghapus showtime",
-                    DeleteResponse { id, deleted },
-                ))
-            } else {
-                Json(ApiResponse::error(&format!(
-                    "Showtime dengan id {} tidak ditemukan",
-                    id
-                )))
-            }
-        })
-        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+    use crate::entities::showtimes::ActiveModel;
+
+    let showtime_check = ShowtimesEntity::find_by_id(id).one(&db).await;
+
+    match showtime_check {
+        Ok(Some(showtime)) => {
+            let active_showtime: ActiveModel = showtime.into();
+            active_showtime
+                .delete(&db)
+                .await
+                .map(|_| {
+                    Json(ApiResponse::success(
+                        "Berhasil menghapus showtime",
+                        DeleteResponse { id, deleted: true },
+                    ))
+                })
+                .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+        }
+        Ok(None) => Json(ApiResponse::error(&format!(
+            "Showtime dengan id {} tidak ditemukan",
+            id
+        ))),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
+    }
 }

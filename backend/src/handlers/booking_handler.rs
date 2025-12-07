@@ -1,10 +1,11 @@
 use crate::middleware::auth::AuthUser;
 use crate::models::*;
+use crate::entities::{Booking, BookingsEntity, BookingSeatsEntity};
 use axum::{
-    Json,
     extract::{Path, State},
+    Json,
 };
-use sqlx::MySqlPool;
+use sea_orm::{DatabaseConnection, EntityTrait, Set, ActiveModelTrait, QueryOrder, ColumnTrait, QueryFilter, FromQueryResult, PaginatorTrait};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 // Generate unique booking code - Pure function
@@ -17,50 +18,60 @@ fn generate_booking_code() -> String {
 }
 
 // Get all bookings - Functional Programming approach
-pub async fn get_all_bookings(State(pool): State<MySqlPool>) -> Json<ApiResponse<Vec<Booking>>> {
-    sqlx::query_as::<_, Booking>(
-        "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings ORDER BY created_at DESC"
-    )
-    .fetch_all(&pool)
-    .await
-    .map(|bookings| Json(ApiResponse::success("Berhasil mengambil semua bookings", bookings)))
-    .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+pub async fn get_all_bookings(State(db): State<DatabaseConnection>) -> Json<ApiResponse<Vec<Booking>>> {
+    use crate::entities::bookings::Column;
+
+    BookingsEntity::find()
+        .order_by_desc(Column::CreatedAt)
+        .all(&db)
+        .await
+        .map(|bookings| Json(ApiResponse::success("Berhasil mengambil semua bookings", bookings)))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 // Get booking by ID dengan detail seats - Functional Programming approach
 pub async fn get_booking_by_id(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<BookingDetail>> {
     // Fetch booking
-    let booking_result = sqlx::query_as::<_, Booking>(
-        "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
-    )
-    .bind(id)
-    .fetch_optional(&pool)
-    .await;
+    let booking_result = BookingsEntity::find_by_id(id).one(&db).await;
 
     match booking_result {
         Ok(Some(booking)) => {
-            // Fetch booking seats dengan functional approach
-            let seats_result = sqlx::query_as::<_, (i64, String, Option<rust_decimal::Decimal>)>(
-                "SELECT bs.seat_id, s.seat_code, bs.price 
-                FROM booking_seats bs 
-                JOIN seats s ON bs.seat_id = s.id 
-                WHERE bs.booking_id = ?",
-            )
-            .bind(id)
-            .fetch_all(&pool)
-            .await
-            .map(|rows| {
-                rows.into_iter()
-                    .map(|(seat_id, seat_code, price)| BookingSeatDetail {
-                        seat_id,
-                        seat_code,
-                        price,
-                    })
-                    .collect::<Vec<_>>()
-            });
+            // Fetch booking seats dengan raw SQL (complex JOIN)
+            use sea_orm::Statement;
+            
+            let seats_query = Statement::from_string(
+                sea_orm::DatabaseBackend::MySql,
+                format!(
+                    "SELECT bs.seat_id, s.seat_code, bs.price \
+                    FROM booking_seats bs \
+                    JOIN seats s ON bs.seat_id = s.id \
+                    WHERE bs.booking_id = {}",
+                    id
+                ),
+            );
+
+            #[derive(Debug, FromQueryResult)]
+            struct SeatRow {
+                seat_id: i64,
+                seat_code: String,
+                price: Option<rust_decimal::Decimal>,
+            }
+
+            let seats_result = SeatRow::find_by_statement(seats_query)
+                .all(&db)
+                .await
+                .map(|rows| {
+                    rows.into_iter()
+                        .map(|row| BookingSeatDetail {
+                            seat_id: row.seat_id,
+                            seat_code: row.seat_code,
+                            price: row.price,
+                        })
+                        .collect::<Vec<_>>()
+                });
 
             match seats_result {
                 Ok(seats) => {
@@ -68,9 +79,9 @@ pub async fn get_booking_by_id(
                         id: booking.id,
                         user_id: booking.user_id,
                         showtime_id: booking.showtime_id,
-                        booking_code: booking.booking_code,
+                        booking_code: Some(booking.booking_code),
                         total_price: booking.total_price,
-                        payment_status: booking.payment_status,
+                        payment_status: Some(booking.payment_status),
                         created_at: booking.created_at,
                         seats,
                     };
@@ -92,49 +103,41 @@ pub async fn get_booking_by_id(
 
 // Get bookings by user_id - Functional Programming approach
 pub async fn get_bookings_by_user(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(user_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Booking>>> {
-    sqlx::query_as::<_, Booking>(
-        "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE user_id = ? ORDER BY created_at DESC"
-    )
-    .bind(user_id)
-    .fetch_all(&pool)
-    .await
-    .map(|bookings| Json(ApiResponse::success("Berhasil mengambil bookings user", bookings)))
-    .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+    use crate::entities::bookings::Column;
+
+    BookingsEntity::find()
+        .filter(Column::UserId.eq(user_id))
+        .order_by_desc(Column::CreatedAt)
+        .all(&db)
+        .await
+        .map(|bookings| Json(ApiResponse::success("Berhasil mengambil bookings user", bookings)))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
 // Create booking - Functional Programming approach (Protected with JWT)
 pub async fn create_booking(
     AuthUser(authenticated_user_id): AuthUser,
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateBookingRequest>,
 ) -> Json<ApiResponse<BookingDetail>> {
     // Use authenticated user_id instead of payload.user_id for security
     let user_id = authenticated_user_id;
 
-    // Validasi: cek apakah seats sudah dibooking
-    let seat_ids_str = payload
-        .seat_ids
-        .iter()
-        .map(|id| id.to_string())
-        .collect::<Vec<_>>()
-        .join(",");
+    // Validasi: cek apakah seats sudah dibooking dengan SeaORM
+    use crate::entities::{bookings::Column as BookingCol, booking_seats::Column as BookingSeatCol};
 
-    let booked_seats_check = sqlx::query_scalar::<_, i64>(&format!(
-        "SELECT COUNT(*) FROM booking_seats bs
-            JOIN bookings b ON bs.booking_id = b.id
-            WHERE bs.seat_id IN ({}) 
-            AND b.showtime_id = ?
-            AND b.payment_status != 'CANCELLED'",
-        seat_ids_str
-    ))
-    .bind(payload.showtime_id)
-    .fetch_one(&pool)
-    .await;
+    let booked_count = BookingSeatsEntity::find()
+        .filter(BookingSeatCol::SeatId.is_in(payload.seat_ids.clone()))
+        .inner_join(BookingsEntity)
+        .filter(BookingCol::ShowtimeId.eq(payload.showtime_id))
+        .filter(BookingCol::PaymentStatus.ne("CANCELLED"))
+        .count(&db)
+        .await;
 
-    match booked_seats_check {
+    match booked_count {
         Ok(count) if count > 0 => {
             return Json(ApiResponse::error("Beberapa kursi sudah dibooking"));
         }
@@ -144,104 +147,115 @@ pub async fn create_booking(
         _ => {}
     }
 
-    // Ambil harga showtime
-    let price_result =
-        sqlx::query_scalar::<_, rust_decimal::Decimal>("SELECT price FROM showtimes WHERE id = ?")
-            .bind(payload.showtime_id)
-            .fetch_optional(&pool)
-            .await;
+    // Ambil harga showtime dengan SeaORM
+    use crate::entities::ShowtimesEntity;
+    
+    let showtime_result = ShowtimesEntity::find_by_id(payload.showtime_id)
+        .one(&db)
+        .await;
 
-    match price_result {
-        Ok(Some(price)) => {
+    match showtime_result {
+        Ok(Some(showtime)) => {
+            let price = showtime.price.unwrap_or_default();
+            
             // Calculate total price dengan functional approach
             let total_price = price * rust_decimal::Decimal::from(payload.seat_ids.len() as i32);
             let booking_code = generate_booking_code();
 
-            // Insert booking
-            let insert_result = sqlx::query(
-                "INSERT INTO bookings (user_id, showtime_id, booking_code, total_price, payment_status) VALUES (?, ?, ?, ?, 'PENDING')"
-            )
-            .bind(user_id)
-            .bind(payload.showtime_id)
-            .bind(&booking_code)
-            .bind(total_price)
-            .execute(&pool)
-            .await;
+            // Insert booking dengan SeaORM ActiveModel
+            use crate::entities::bookings::ActiveModel as BookingActiveModel;
+            
+            let new_booking = BookingActiveModel {
+                user_id: Set(Some(user_id)),
+                showtime_id: Set(Some(payload.showtime_id)),
+                booking_code: Set(booking_code.clone()),
+                total_price: Set(Some(total_price)),
+                payment_status: Set("PENDING".to_string()),
+                ..Default::default()
+            };
 
-            match insert_result {
-                Ok(result) => {
-                    let booking_id = result.last_insert_id() as i64;
+            match new_booking.insert(&db).await {
+                Ok(booking) => {
+                    let booking_id = booking.id;
 
-                    // Insert booking_seats dengan functional approach
-                    let seats_insert_futures = payload.seat_ids.iter()
-                        .map(|seat_id| {
-                            sqlx::query(
-                                "INSERT INTO booking_seats (booking_id, seat_id, price) VALUES (?, ?, ?)"
-                            )
-                            .bind(booking_id)
-                            .bind(seat_id)
-                            .bind(price)
-                            .execute(&pool)
-                        });
-
-                    // Execute all inserts
-                    for future in seats_insert_futures {
-                        future.await.ok();
+                    // Insert booking_seats dengan SeaORM (immutable functional approach)
+                    use crate::entities::booking_seats::ActiveModel as BookingSeatActiveModel;
+                    use crate::entities::SeatsEntity;
+                    
+                    for seat_id in &payload.seat_ids {
+                        let booking_seat = BookingSeatActiveModel {
+                            booking_id: Set(Some(booking_id)),
+                            seat_id: Set(Some(*seat_id)),
+                            price: Set(Some(price)),
+                            ..Default::default()
+                        };
+                        booking_seat.insert(&db).await.ok();
                     }
 
-                    // Update seat status menjadi 'booked' dengan functional approach
-                    for seat_id in payload.seat_ids.iter() {
-                        sqlx::query("UPDATE seats SET seat_status = 'booked' WHERE id = ?")
-                            .bind(seat_id)
-                            .execute(&pool)
-                            .await
-                            .ok();
+                    // Update seat status menjadi 'booked' dengan SeaORM
+                    use crate::entities::seats::ActiveModel as SeatActiveModel;
+                    
+                    for seat_id in &payload.seat_ids {
+                        if let Ok(Some(seat)) = SeatsEntity::find_by_id(*seat_id).one(&db).await {
+                            let mut seat_active: SeatActiveModel = seat.into();
+                            seat_active.seat_status = Set(Some("booked".to_string()));
+                            seat_active.update(&db).await.ok();
+                        }
                     }
 
-                    // Fetch created booking dengan seats
-                    let booking_detail_result = sqlx::query_as::<_, Booking>(
-                        "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
-                    )
-                    .bind(booking_id)
-                    .fetch_one(&pool)
-                    .await;
+                    // Fetch created booking seats dengan SeaORM raw query
+                    use sea_orm::Statement;
+                    
+                    let seats_query = Statement::from_string(
+                        sea_orm::DatabaseBackend::MySql,
+                        format!(
+                            "SELECT bs.seat_id, s.seat_code, bs.price \
+                            FROM booking_seats bs \
+                            JOIN seats s ON bs.seat_id = s.id \
+                            WHERE bs.booking_id = {}",
+                            booking_id
+                        ),
+                    );
+
+                    #[derive(Debug, FromQueryResult)]
+                    struct SeatRow {
+                        seat_id: i64,
+                        seat_code: String,
+                        price: Option<rust_decimal::Decimal>,
+                    }
+
+                    let seats_result = SeatRow::find_by_statement(seats_query)
+                        .all(&db)
+                        .await
+                        .map(|rows| {
+                            rows.into_iter()
+                                .map(|row| BookingSeatDetail {
+                                    seat_id: row.seat_id,
+                                    seat_code: row.seat_code,
+                                    price: row.price,
+                                })
+                                .collect::<Vec<_>>()
+                        })
+                        .unwrap_or_default();
+
+                    let booking_detail_result = BookingsEntity::find_by_id(booking_id).one(&db).await;
 
                     match booking_detail_result {
-                        Ok(booking) => {
-                            let seats_result =
-                                sqlx::query_as::<_, (i64, String, Option<rust_decimal::Decimal>)>(
-                                    "SELECT bs.seat_id, s.seat_code, bs.price 
-                                FROM booking_seats bs 
-                                JOIN seats s ON bs.seat_id = s.id 
-                                WHERE bs.booking_id = ?",
-                                )
-                                .bind(booking_id)
-                                .fetch_all(&pool)
-                                .await
-                                .map(|rows| {
-                                    rows.into_iter()
-                                        .map(|(seat_id, seat_code, price)| BookingSeatDetail {
-                                            seat_id,
-                                            seat_code,
-                                            price,
-                                        })
-                                        .collect::<Vec<_>>()
-                                })
-                                .unwrap_or_default();
-
+                        Ok(Some(booking)) => {
                             let detail = BookingDetail {
                                 id: booking.id,
                                 user_id: booking.user_id,
                                 showtime_id: booking.showtime_id,
-                                booking_code: booking.booking_code,
+                                booking_code: Some(booking.booking_code),
                                 total_price: booking.total_price,
-                                payment_status: booking.payment_status,
+                                payment_status: Some(booking.payment_status),
                                 created_at: booking.created_at,
                                 seats: seats_result,
                             };
 
                             Json(ApiResponse::success("Berhasil membuat booking", detail))
                         }
+                        Ok(None) => Json(ApiResponse::error("Booking tidak ditemukan setelah dibuat")),
                         Err(e) => Json(ApiResponse::error(&format!(
                             "Failed to fetch created booking: {}",
                             e
@@ -261,7 +275,7 @@ pub async fn create_booking(
 
 // Update payment status - Functional Programming approach
 pub async fn update_payment_status(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdatePaymentStatusRequest>,
 ) -> Json<ApiResponse<Booking>> {
@@ -273,26 +287,23 @@ pub async fn update_payment_status(
         ));
     }
 
-    // Update status
-    let update_result = sqlx::query("UPDATE bookings SET payment_status = ? WHERE id = ?")
-        .bind(&payload.payment_status)
-        .bind(id)
-        .execute(&pool)
-        .await;
+    // Update status dengan SeaORM
+    let booking_result = BookingsEntity::find_by_id(id).one(&db).await;
 
-    match update_result {
-        Ok(result) if result.rows_affected() > 0 => {
-            // Fetch updated booking
-            sqlx::query_as::<_, Booking>(
-                "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
-            )
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map(|booking| Json(ApiResponse::success("Berhasil update status payment", booking)))
-            .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch updated booking: {}", e))))
+    match booking_result {
+        Ok(Some(booking)) => {
+            use crate::entities::bookings::ActiveModel;
+            
+            let mut active_booking: ActiveModel = booking.into();
+            active_booking.payment_status = Set(payload.payment_status);
+            
+            active_booking
+                .update(&db)
+                .await
+                .map(|updated| Json(ApiResponse::success("Berhasil update status payment", updated)))
+                .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to update: {}", e))))
         }
-        Ok(_) => Json(ApiResponse::error(&format!(
+        Ok(None) => Json(ApiResponse::error(&format!(
             "Booking dengan id {} tidak ditemukan",
             id
         ))),
@@ -302,46 +313,49 @@ pub async fn update_payment_status(
 
 // Cancel booking - Functional Programming approach
 pub async fn cancel_booking(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<Booking>> {
-    // Get seat IDs sebelum cancel untuk kembalikan status
-    let seats_result =
-        sqlx::query_scalar::<_, i64>("SELECT seat_id FROM booking_seats WHERE booking_id = ?")
-            .bind(id)
-            .fetch_all(&pool)
-            .await;
+    // Get seat IDs sebelum cancel dengan SeaORM
+    use crate::entities::booking_seats::Column as BookingSeatCol;
+    
+    let seat_ids_result = BookingSeatsEntity::find()
+        .filter(BookingSeatCol::BookingId.eq(id))
+        .all(&db)
+        .await;
 
-    // Update status ke CANCELLED
-    let update_result =
-        sqlx::query("UPDATE bookings SET payment_status = 'CANCELLED' WHERE id = ?")
-            .bind(id)
-            .execute(&pool)
-            .await;
+    // Update booking status ke CANCELLED dengan SeaORM
+    let booking_result = BookingsEntity::find_by_id(id).one(&db).await;
 
-    match update_result {
-        Ok(result) if result.rows_affected() > 0 => {
-            // Kembalikan status kursi menjadi 'available'
-            if let Ok(seat_ids) = seats_result {
-                for seat_id in seat_ids.iter() {
-                    sqlx::query("UPDATE seats SET seat_status = 'available' WHERE id = ?")
-                        .bind(seat_id)
-                        .execute(&pool)
-                        .await
-                        .ok();
+    match booking_result {
+        Ok(Some(booking)) => {
+            use crate::entities::bookings::ActiveModel;
+            use crate::entities::{SeatsEntity, seats::ActiveModel as SeatActiveModel};
+            
+            let mut active_booking: ActiveModel = booking.into();
+            active_booking.payment_status = Set("CANCELLED".to_string());
+            
+            // Update booking status
+            let updated_booking = active_booking.update(&db).await;
+
+            // Kembalikan status kursi menjadi 'available' dengan SeaORM (immutable)
+            if let Ok(booking_seats) = seat_ids_result {
+                for bs in booking_seats {
+                    if let Some(seat_id) = bs.seat_id {
+                        if let Ok(Some(seat)) = SeatsEntity::find_by_id(seat_id).one(&db).await {
+                            let mut seat_active: SeatActiveModel = seat.into();
+                            seat_active.seat_status = Set(Some("available".to_string()));
+                            seat_active.update(&db).await.ok();
+                        }
+                    }
                 }
             }
 
-            sqlx::query_as::<_, Booking>(
-                "SELECT id, user_id, showtime_id, booking_code, total_price, payment_status, CAST(created_at AS DATETIME) as created_at FROM bookings WHERE id = ?"
-            )
-            .bind(id)
-            .fetch_one(&pool)
-            .await
-            .map(|booking| Json(ApiResponse::success("Berhasil cancel booking", booking)))
-            .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to fetch cancelled booking: {}", e))))
+            updated_booking
+                .map(|b| Json(ApiResponse::success("Berhasil cancel booking", b)))
+                .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Failed to cancel: {}", e))))
         }
-        Ok(_) => Json(ApiResponse::error(&format!(
+        Ok(None) => Json(ApiResponse::error(&format!(
             "Booking dengan id {} tidak ditemukan",
             id
         ))),
@@ -351,19 +365,32 @@ pub async fn cancel_booking(
 
 // Get booked seats by showtime
 pub async fn get_booked_seats_by_showtime(
-    State(pool): State<MySqlPool>,
+    State(db): State<DatabaseConnection>,
     Path(showtime_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<String>>> {
-    let seats_result = sqlx::query_scalar::<_, String>(
-        "SELECT s.seat_code 
-        FROM booking_seats bs
-        JOIN bookings b ON bs.booking_id = b.id
-        JOIN seats s ON bs.seat_id = s.id
-        WHERE b.showtime_id = ? AND b.payment_status != 'CANCELLED'",
-    )
-    .bind(showtime_id)
-    .fetch_all(&pool)
-    .await;
+    use sea_orm::Statement;
+    
+    let query = Statement::from_string(
+        sea_orm::DatabaseBackend::MySql,
+        format!(
+            "SELECT s.seat_code \
+            FROM booking_seats bs \
+            JOIN bookings b ON bs.booking_id = b.id \
+            JOIN seats s ON bs.seat_id = s.id \
+            WHERE b.showtime_id = {} AND b.payment_status != 'CANCELLED'",
+            showtime_id
+        ),
+    );
+
+    #[derive(Debug, FromQueryResult)]
+    struct SeatCodeRow {
+        seat_code: String,
+    }
+
+    let seats_result = SeatCodeRow::find_by_statement(query)
+        .all(&db)
+        .await
+        .map(|rows| rows.into_iter().map(|r| r.seat_code).collect::<Vec<_>>());
 
     match seats_result {
         Ok(seats) => Json(ApiResponse::success(
