@@ -94,7 +94,11 @@ async fn main() {
     println!("     GET  /api/workflow/jadwal/terdekat");
     println!("     GET  /api/workflow/jadwal/studio/:studio_id");
     println!("     GET  /api/workflow/jadwal/movie/:movie_id");
-    println!("     GET  /api/workflow/jadwal/stats");
+    println!("     GET  /api/workflow/jadwal/stats                           🔥 MULTIPROCESSING");
+    println!("     GET  /api/workflow/jadwal/batch?chunk_size=100            🔥 MULTIPROCESSING");
+    println!("     POST /api/workflow/jadwal/filter-kompleks                 🔥 MULTIPROCESSING");
+    println!("     GET  /api/workflow/jadwal/film/:movie_id/semua-bioskop    🔥 MULTIPROCESSING");
+    println!("     GET  /api/workflow/jadwal/semua-film                      🔥 MULTIPROCESSING");
 
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();

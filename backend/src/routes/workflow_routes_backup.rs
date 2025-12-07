@@ -1,6 +1,10 @@
+// ============================================================================
+// WORKFLOW ROUTES - API Endpoints untuk Jadwal Workflow
+// ============================================================================
+
 use chrono::{DateTime, Local};
-use rust_decimal::Decimal;
 use serde::Serialize;
+
 use crate::services::workflow_service::{HasilAnalisa, JadwalWorkflowService, StatusJadwal};
 use axum::{
     Json, Router, extract::Path, extract::State, http::StatusCode, response::IntoResponse,
@@ -8,7 +12,7 @@ use axum::{
 };
 use std::sync::Arc;
 
-#[derive(Clone, Serialize)]
+#[derive(Clone)]
 #[serde(tag = "type", content = "data")]
 pub enum StatusJadwalResponse {
     Mendesak {
@@ -34,6 +38,7 @@ pub enum ApiResponse {
     Error { message: String },
 }
 
+// Convert internal enum ke response enum
 impl From<StatusJadwal> for StatusJadwalResponse {
     fn from(status: StatusJadwal) -> Self {
         match status {
@@ -79,10 +84,11 @@ pub struct AppState {
     pub workflow_service: Arc<JadwalWorkflowService>,
 }
 
-pub async fn get_jadwal_terdekat(State(state): State<AppState>) -> impl IntoResponse {
-    match state.workflow_service.execute_workflow().await {
-        Ok(hasil) => {
-            let response: ApiResponse = hasil.into();
+// ============================================================================
+    pub workflow_service: Arc<JadwalWorkflowService>,
+}
+
+/// GET /api/workflow/jadwal/terdekatinto();
             (StatusCode::OK, Json(response))
         }
         Err(e) => {
@@ -92,15 +98,16 @@ pub async fn get_jadwal_terdekat(State(state): State<AppState>) -> impl IntoResp
     }
 }
 
+/// GET /api/workflow/jadwal/studio/:studio_id
+/// Endpoint untuk jadwal terdekat by studio
 pub async fn get_jadwal_by_studio(
     State(state): State<AppState>,
     Path(studio_id): Path<i64>,
 ) -> impl IntoResponse {
     match state
-        .workflow_service
-        .execute_workflow_by_studio(studio_id)
-        .await
-    {
+}
+
+/// GET /api/workflow/jadwal/studio/:studio_id
         Ok(hasil) => {
             let response: ApiResponse = hasil.into();
             (StatusCode::OK, Json(response))
@@ -112,12 +119,13 @@ pub async fn get_jadwal_by_studio(
     }
 }
 
+/// GET /api/workflow/jadwal/movie/:movie_id
+/// Endpoint untuk jadwal terdekat by movie
 pub async fn get_jadwal_by_movie(
     State(state): State<AppState>,
-    Path(movie_id): Path<i64>,
-) -> impl IntoResponse {
-    match state
-        .workflow_service
+}
+
+/// GET /api/workflow/jadwal/movie/:movie_id
         .execute_workflow_by_movie(movie_id)
         .await
     {
@@ -132,13 +140,14 @@ pub async fn get_jadwal_by_movie(
     }
 }
 
+/// GET /api/workflow/jadwal/stats
+/// 🔥 MULTIPROCESSING: Endpoint untuk statistik jadwal dengan parallel aggregation
 pub async fn get_jadwal_stats(State(state): State<AppState>) -> impl IntoResponse {
     match state.workflow_service.execute_workflow_statistik().await {
         Ok(statistik) => {
-            let response = serde_json::json!({
-                "success": true,
-                "statistik": {
-                    "total_jadwal": statistik.total_jadwal,
+}
+
+/// 🔥 RAYON: GET /api/workflow/jadwal/stats - Parallel aggregation
                     "jadwal_hari_ini": statistik.jadwal_hari_ini,
                     "jadwal_minggu_ini": statistik.jadwal_minggu_ini,
                     "jadwal_mendesak": statistik.jadwal_mendesak,
@@ -162,14 +171,15 @@ pub async fn get_jadwal_stats(State(state): State<AppState>) -> impl IntoRespons
     }
 }
 
+/// GET /api/workflow/jadwal/batch?chunk_size=100
+/// 🔥 MULTIPROCESSING: Batch processing dengan chunk-based parallel execution
 pub async fn get_jadwal_batch(
     State(state): State<AppState>,
     axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
-) -> impl IntoResponse {
-    let chunk_size = params
-        .get("chunk_size")
-        .and_then(|s| s.parse::<usize>().ok())
-        .unwrap_or(100);
+    }
+}
+
+/// 🔥 RAYON: GET /api/workflow/jadwal/batch - Chunk-based parallel processing
 
     match state.workflow_service.execute_workflow_batch(chunk_size).await {
         Ok(hasil_batch) => {
@@ -178,9 +188,9 @@ pub async fn get_jadwal_batch(
                 .map(|hasil| {
                     serde_json::json!({
                         "type": match hasil {
-                            HasilAnalisa::JadwalTerdekat(_) => "found",
-                            HasilAnalisa::TidakAdaJadwal => "not_found",
-                            HasilAnalisa::Error(_) => "error",
+                            crate::services::workflow_service::HasilAnalisa::JadwalTerdekat(_) => "found",
+                            crate::services::workflow_service::HasilAnalisa::TidakAdaJadwal => "not_found",
+                            crate::services::workflow_service::HasilAnalisa::Error(_) => "error",
                         }
                     })
                 })
@@ -205,17 +215,18 @@ pub async fn get_jadwal_batch(
     }
 }
 
-pub async fn post_jadwal_filter_kompleks(
-    State(state): State<AppState>,
-    Json(body): Json<serde_json::Value>,
-) -> impl IntoResponse {
+/// POST /api/workflow/jadwal/filter-kompleks
+    }
+}
+
+/// 🔥 RAYON: POST /api/workflow/jadwal/filter-kompleks - Multi-level parallel filtering
     use crate::services::workflow_service::FilterKriteria;
 
     let kriteria = FilterKriteria {
         studio_id: body.get("studio_id").and_then(|v| v.as_i64()),
         movie_id: body.get("movie_id").and_then(|v| v.as_i64()),
-        min_harga: body.get("min_harga").and_then(|v| v.as_i64()).map(|i| Decimal::from(i)),
-        max_harga: body.get("max_harga").and_then(|v| v.as_i64()).map(|i| Decimal::from(i)),
+        min_harga: body.get("min_harga").and_then(|v| v.as_i64()),
+        max_harga: body.get("max_harga").and_then(|v| v.as_i64()),
         hari_ini_saja: body.get("hari_ini_saja").and_then(|v| v.as_bool()).unwrap_or(false),
         hanya_mendesak: body.get("hanya_mendesak").and_then(|v| v.as_bool()).unwrap_or(false),
     };
@@ -232,11 +243,13 @@ pub async fn post_jadwal_filter_kompleks(
     }
 }
 
-pub async fn get_jadwal_film_semua_bioskop(
-    State(state): State<AppState>,
-    Path(movie_id): Path<i64>,
-) -> impl IntoResponse {
-    match state
+/// GET /api/workflow/jadwal/film/:movie_id/semua-bioskop
+/// 🔥 MULTIPROCESSING: Jadwal terdekat untuk 1 film di semua bioskop
+    }
+}
+
+/// 🔥 RAYON: GET /api/workflow/jadwal/film/:movie_id/semua-bioskop
+/// Jadwal terdekat untuk 1 film di semua bioskop dengan parallel grouping
         .workflow_service
         .execute_workflow_jadwal_film_semua_bioskop(movie_id)
         .await
@@ -272,11 +285,13 @@ pub async fn get_jadwal_film_semua_bioskop(
     }
 }
 
-pub async fn get_jadwal_semua_film(State(state): State<AppState>) -> impl IntoResponse {
-    match state
-        .workflow_service
-        .execute_workflow_jadwal_semua_film()
-        .await
+/// GET /api/workflow/jadwal/semua-film
+/// 🔥 MULTIPROCESSING: Jadwal terdekat untuk semua film
+    }
+}
+
+/// 🔥 RAYON: GET /api/workflow/jadwal/semua-film
+/// Jadwal terdekat untuk semua film dengan parallel grouping
     {
         Ok(hasil_list) => {
             let results: Vec<_> = hasil_list
@@ -308,14 +323,22 @@ pub async fn get_jadwal_semua_film(State(state): State<AppState>) -> impl IntoRe
     }
 }
 
-pub fn workflow_routes() -> Router<AppState> {
-    Router::new()
-        .route("/jadwal/terdekat", get(get_jadwal_terdekat))
-        .route("/jadwal/studio/:studio_id", get(get_jadwal_by_studio))
-        .route("/jadwal/movie/:movie_id", get(get_jadwal_by_movie))
+// ============================================================================
+    }
+}
+
+pub fn workflow_routes() -> Router<AppState> {(get_jadwal_by_movie))
         .route("/jadwal/stats", get(get_jadwal_stats))
         .route("/jadwal/batch", get(get_jadwal_batch))
         .route("/jadwal/filter-kompleks", axum::routing::post(post_jadwal_filter_kompleks))
-        .route("/jadwal/film/:movie_id/semua-bioskop", get(get_jadwal_film_semua_bioskop))
+        .route("/jadwal/film/{movie_id}/semua-bioskop", get(get_jadwal_film_semua_bioskop))  // 🔥 NEW
+        .route("/jadwal/semua-film", get(get_jadwal_semua_film))  // 🔥 NEW
+}
+
+// ============================================================================
+// 🔥 MULTIPROCESSING IMPLEMENTATION CHECKLIST: ✅ SELESAI
+        .route("/jadwal/batch", get(get_jadwal_batch))
+        .route("/jadwal/filter-kompleks", axum::routing::post(post_jadwal_filter_kompleks))
+        .route("/jadwal/film/{movie_id}/semua-bioskop", get(get_jadwal_film_semua_bioskop))
         .route("/jadwal/semua-film", get(get_jadwal_semua_film))
 }
