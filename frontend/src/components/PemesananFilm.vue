@@ -1,51 +1,31 @@
 <template>
-        <div class="min-h-screen bg-[#0a1628]"> 
-<!-- Navbar -->
-<nav class="bg-[#1e2a3a] border-b border-gray-700">
-    <div class="max-w-7xl mx-auto px-6">
-        <div class="flex items-center justify-between h-14">
-            <!-- Left side - Logo -->
-            <div class="flex items-center">
-                <div class="bg-blue-600 px-4 py-1.5 rounded-lg">
-                    <span class="text-white text-sm font-bold">TIOSKOP</span>
+    <div class="min-h-screen bg-gray-50">
+        <!-- Header Section -->
+        <div class="bg-[#143C8C] text-white py-8 px-6 rounded-b-2xl shadow-lg">
+            <div class="max-w-7xl mx-auto">
+                <button
+                    @click="goBack"
+                    class="flex items-center gap-2 text-blue-200 hover:text-white mb-6 transition-colors group"
+                >
+                    <ArrowLeft
+                        class="w-5 h-5 group-hover:-translate-x-1 transition-transform"
+                    />
+                    <span class="font-medium">Kembali</span>
+                </button>
+
+                <div class="flex items-center gap-4">
+                    <div class="bg-white/10 p-3 rounded-xl">
+                        <Film class="w-8 h-8" />
+                    </div>
+                    <div>
+                        <h1 class="text-3xl mb-1">Pemesanan Tiket</h1>
+                        <p class="text-blue-100">
+                            Pilih jadwal dan tempat duduk Anda
+                        </p>
+                    </div>
                 </div>
             </div>
-            <!-- Right side - Menu items -->
-            <div class="flex items-center gap-6">
-                <button class="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-                    <Film class="w-4 h-4" />
-                    <span class="text-sm">Cari Film</span>
-                </button>
-                <button class="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-                    <Calendar class="w-4 h-4" />
-                    <span class="text-sm">Jadwal Showing</span>
-                </button>
-                <button class="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-                    <MapPin class="w-4 h-4" />
-                    <span class="text-sm">Bioskop</span>
-                </button>
-                <button class="flex items-center gap-2 text-gray-300 hover:text-white transition-colors">
-                    <MapPin class="w-4 h-4" />
-                    <span class="text-sm">Balikpapan</span>
-                </button>
-            </div>
         </div>
-    </div>
-</nav>
-<!-- Back Button & Title -->
-<div class="bg-[#0f1f3a] py-6 px-6">
-    <div class="max-w-7xl mx-auto">
-        <button
-            @click="goBack"
-            class="flex items-center gap-2 text-gray-300 hover:text-white mb-4 transition-colors group"
-        >
-            <ArrowLeft class="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
-            <span class="font-medium">Kembali</span>
-        </button>
-        <h1 class="text-white text-2xl font-bold">Pemesanan Tiket</h1>
-        <p class="text-gray-400 text-sm mt-1">Pilih jadwal dan tempat duduk Anda</p>
-    </div>
-</div>
 
         <!-- Main Content -->
         <div class="max-w-7xl mx-auto px-6 py-8">
@@ -53,18 +33,18 @@
                 <!-- Left Column -->
                 <div class="lg:col-span-2 space-y-6">
                     <!-- Selected Movie Info -->
-                    <div class="bg-[#1a2942] rounded-xl shadow-md p-6 border border-gray-700">
+                    <div class="bg-white rounded-xl shadow-md p-6">
                         <div class="flex items-center gap-2 mb-4">
-                            <Film class="w-5 h-5 text-blue-400" />
-                            <h2 class="text-white font-semibold">Film yang Dipilih</h2>
+                            <Film class="w-5 h-5 text-[#143C8C]" />
+                            <h2 class="text-[#143C8C]">Film yang Dipilih</h2>
                         </div>
 
                         <!-- Loading State -->
                         <div v-if="isLoading" class="text-center py-8">
                             <div
-                                class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"
+                                class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-900"
                             ></div>
-                            <p class="mt-4 text-gray-300">
+                            <p class="mt-4 text-gray-600">
                                 Memuat data film...
                             </p>
                         </div>
@@ -89,11 +69,9 @@
                                         :alt="selectedMovie.title"
                                         class="w-full h-full object-cover"
                                         @error="
-                                            (e: Event) => {
-                                                const target = e.target as HTMLImageElement | null;
-                                                if (target) {
-                                                    target.src = '/placeholder.jpg';
-                                                }
+                                            (e) => {
+                                                const target = e.target as HTMLImageElement;
+                                                if (target) target.src = '/placeholder.jpg';
                                             }
                                         "
                                         loading="lazy"
@@ -103,23 +81,23 @@
 
                             <!-- Movie Info -->
                             <div class="flex-1 flex flex-col justify-center">
-                                <h3 class="text-white text-xl font-bold mb-2">
+                                <h3 class="text-gray-900 mb-2">
                                     {{ selectedMovie.title }}
                                 </h3>
-                                <p class="text-gray-300 mb-3">
+                                <p class="text-gray-600 mb-3">
                                     {{ selectedMovie.genre }}
                                 </p>
                                 <div class="flex items-center gap-2 mb-3">
                                     <Star
                                         class="w-5 h-5 text-yellow-400 fill-yellow-400"
                                     />
-                                    <span class="text-white font-semibold">
+                                    <span class="text-gray-900">
                                         {{ selectedMovie.rating || "0" }}
                                     </span>
-                                    <span class="text-gray-400">/10</span>
+                                    <span class="text-gray-500">/10</span>
                                 </div>
                                 <p
-                                    class="text-gray-300 text-sm leading-relaxed"
+                                    class="text-gray-600 text-sm leading-relaxed"
                                 >
                                     {{ selectedMovie.description }}
                                 </p>
@@ -127,20 +105,60 @@
                         </div>
                     </div>
 
+                    <!-- Showtime Selection (if not selected) -->
+                    <div
+                        v-if="!selectedShowtime && showtimeList.length > 0"
+                        class="bg-white rounded-xl shadow-md p-6"
+                    >
+                        <h2 class="text-[#143C8C] mb-4">Pilih Jadwal Tayang</h2>
+                        <p class="text-gray-600 text-sm mb-4">
+                            Silakan pilih jadwal tayang terlebih dahulu
+                        </p>
+
+                        <div class="space-y-3">
+                            <button
+                                v-for="showtime in showtimeList"
+                                :key="showtime.id"
+                                @click="selectShowtime(showtime)"
+                                class="w-full p-4 border-2 border-gray-200 rounded-lg hover:border-[#143C8C] hover:bg-blue-50 transition-all text-left"
+                            >
+                                <div class="flex justify-between items-center">
+                                    <div>
+                                        <p class="text-gray-900 font-medium">
+                                            {{
+                                                formatDateTime(
+                                                    showtime.start_time
+                                                )
+                                            }}
+                                        </p>
+                                        <p class="text-gray-600 text-sm">
+                                            {{ formatCurrency(showtime.price) }}
+                                        </p>
+                                    </div>
+                                    <div class="text-[#143C8C]">
+                                        <span class="text-sm">Pilih →</span>
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
 
                     <!-- Seat Selection -->
-                    <div class="bg-[#1a2942] rounded-xl shadow-md p-6 border border-gray-700">
-                        <h2 class="text-white font-semibold text-lg mb-6">Pilih Tempat Duduk</h2>
+                    <div
+                        v-if="selectedShowtime"
+                        class="bg-white rounded-xl shadow-md p-6"
+                    >
+                        <h2 class="text-[#143C8C] mb-6">Pilih Tempat Duduk</h2>
 
                         <!-- Screen -->
                         <div class="mb-8">
                             <div
-                                class="bg-gradient-to-b from-gray-600 to-gray-700 rounded-t-3xl py-2 text-center text-gray-200 text-sm mb-2"
+                                class="bg-gradient-to-b from-gray-200 to-gray-100 rounded-t-3xl py-2 text-center text-gray-600 text-sm mb-2"
                             >
                                 LAYAR
                             </div>
                             <div
-                                class="h-1 bg-gradient-to-b from-gray-500 to-transparent rounded-full"
+                                class="h-1 bg-gradient-to-b from-gray-300 to-transparent rounded-full"
                             ></div>
                         </div>
 
@@ -153,7 +171,7 @@
                                     class="flex items-center gap-2"
                                 >
                                     <div
-                                        class="w-6 text-center text-gray-300 text-sm font-medium"
+                                        class="w-6 text-center text-gray-600 text-sm"
                                     >
                                         {{ row }}
                                     </div>
@@ -188,29 +206,21 @@
 
                         <!-- Legend -->
                         <div
-                            class="flex flex-wrap gap-4 justify-center pt-4 border-t border-gray-700"
+                            class="flex flex-wrap gap-4 justify-center pt-4 border-t"
                         >
                             <div class="flex items-center gap-2">
                                 <div
-                                    class="w-6 h-6 bg-gray-600 rounded-md"
+                                    class="w-6 h-6 bg-gray-200 rounded-md"
                                 ></div>
-                                <span class="text-sm text-gray-300"
+                                <span class="text-sm text-gray-600"
                                     >Tersedia</span
                                 >
                             </div>
                             <div class="flex items-center gap-2">
                                 <div
-                                    class="w-6 h-6 bg-yellow-500 rounded-md"
+                                    class="w-6 h-6 bg-[#143C8C] rounded-md"
                                 ></div>
-                                <span class="text-sm text-gray-300"
-                                    >VIP (+ Rp 15.000)</span
-                                >
-                            </div>
-                            <div class="flex items-center gap-2">
-                                <div
-                                    class="w-6 h-6 bg-blue-500 rounded-md"
-                                ></div>
-                                <span class="text-sm text-gray-300"
+                                <span class="text-sm text-gray-600"
                                     >Dipilih</span
                                 >
                             </div>
@@ -218,7 +228,7 @@
                                 <div
                                     class="w-6 h-6 bg-gray-400 rounded-md"
                                 ></div>
-                                <span class="text-sm text-gray-300"
+                                <span class="text-sm text-gray-600"
                                     >Terisi</span
                                 >
                             </div>
@@ -230,78 +240,43 @@
                 <div class="lg:col-span-1">
                     <div class="lg:sticky lg:top-6">
                         <div
-                            class="bg-[#1a2942] rounded-xl shadow-md p-6 sticky top-6 border border-gray-700"
+                            class="bg-white rounded-xl shadow-md p-6 sticky top-6"
                         >
                             <div class="flex items-center gap-2 mb-6">
-                                <Receipt class="w-5 h-5 text-blue-400" />
-                                <h2 class="text-white font-semibold">
+                                <Receipt class="w-5 h-5 text-[#143C8C]" />
+                                <h2 class="text-[#143C8C]">
                                     Ringkasan Pesanan
                                 </h2>
                             </div>
 
                             <div class="space-y-4">
                                 <!-- Movie Info -->
-                                <div class="pb-4 border-b border-gray-700">
-                                    <h3 class="text-white font-semibold mb-2">
+                                <div class="pb-4 border-b">
+                                    <h3 class="text-gray-900 mb-2">
                                         {{ selectedMovie.title }}
                                     </h3>
-                                    <p class="text-gray-400 text-sm">
+                                    <p class="text-gray-500 text-sm">
                                         {{ selectedMovie.genre }}
                                     </p>
-                                </div>
-
-                                <!-- Schedule Info -->
-                                <div
-                                    v-if="selectedDate"
-                                    class="flex items-start gap-3 pb-4 border-b border-gray-700"
-                                >
-                                    <Calendar
-                                        class="w-5 h-5 text-blue-400 mt-0.5"
-                                    />
-                                    <div>
-                                        <p class="text-gray-400 text-sm">
-                                            Tanggal
-                                        </p>
-                                        <p class="text-white font-medium">
-                                            {{ formatDate(selectedDate) }}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div
-                                    v-if="selectedTime"
-                                    class="flex items-start gap-3 pb-4 border-b border-gray-700"
-                                >
-                                    <Clock
-                                        class="w-5 h-5 text-blue-400 mt-0.5"
-                                    />
-                                    <div>
-                                        <p class="text-gray-400 text-sm">
-                                            Waktu
-                                        </p>
-                                        <p class="text-white font-medium">
-                                            {{ selectedTime }} WIB
-                                        </p>
-                                    </div>
                                 </div>
 
                                 <!-- Seats Info -->
                                 <div
                                     v-if="selectedSeats.length > 0"
-                                    class="flex items-start gap-3 pb-4 border-b border-gray-700"
+                                    class="flex items-start gap-3 pb-4 border-b"
                                 >
                                     <Armchair
-                                        class="w-5 h-5 text-blue-400 mt-0.5"
+                                        class="w-5 h-5 text-[#143C8C] mt-0.5"
                                     />
                                     <div class="flex-1">
-                                        <p class="text-gray-400 text-sm mb-2">
+                                        <p class="text-gray-600 text-sm mb-2">
                                             Kursi
                                         </p>
                                         <div class="flex flex-wrap gap-2">
                                             <span
                                                 v-for="seat in sortedSeats"
                                                 :key="seat"
-                                                class="px-2 py-1 rounded text-sm bg-[#0f1f3a] text-gray-300 border border-gray-700"
+                                                class="px-2 py-1 rounded text-sm bg-gray-100 text-gray-700"
                                             >
                                                 {{ seat }}
                                             </span>
@@ -315,30 +290,30 @@
                                     class="space-y-3 pt-2"
                                 >
                                     <div class="flex justify-between text-sm">
-                                        <span class="text-gray-400">
+                                        <span class="text-gray-600">
                                             {{ selectedSeats.length }}
                                             Tiket x
                                             {{ formatCurrency(TICKET_PRICE) }}
                                         </span>
-                                        <span class="text-white">
+                                        <span class="text-gray-900">
                                             {{ formatCurrency(subtotal) }}
                                         </span>
                                     </div>
                                     <div class="flex justify-between text-sm">
-                                        <span class="text-gray-400">
+                                        <span class="text-gray-600">
                                             Biaya Admin
                                         </span>
-                                        <span class="text-white">
+                                        <span class="text-gray-900">
                                             {{ formatCurrency(adminFee) }}
                                         </span>
                                     </div>
                                     <div
-                                        class="flex justify-between pt-3 border-t border-gray-700"
+                                        class="flex justify-between pt-3 border-t"
                                     >
-                                        <span class="text-white">
+                                        <span class="text-gray-900">
                                             Total
                                         </span>
-                                        <span class="text-blue-400 text-xl">
+                                        <span class="text-[#143C8C] text-xl">
                                             {{ formatCurrency(total) }}
                                         </span>
                                     </div>
@@ -348,7 +323,7 @@
                                 <button
                                     @click="handleConfirm"
                                     :disabled="!canConfirm"
-                                    class="w-full bg-blue-600 text-white py-3 rounded-lg mt-6 transition-all duration-200 disabled:bg-gray-700 disabled:cursor-not-allowed hover:bg-blue-700 disabled:hover:bg-gray-700 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+                                    class="w-full bg-[#143C8C] text-white py-3 rounded-lg mt-6 transition-all duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed hover:bg-[#0f2d6b] disabled:hover:bg-gray-300 shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                                 >
                                     <CreditCard class="w-5 h-5" />
                                     <span>Konfirmasi Pesanan</span>
@@ -385,7 +360,7 @@ import {
     CreditCard,
     Star,
     MapPin,
-} from "lucide-vue-next";// atau ganti dengan ikon lain yang kamu pakai
+} from "lucide-vue-next"; // atau ganti dengan ikon lain yang kamu pakai
 
 const route = useRoute();
 const router = useRouter();
@@ -454,19 +429,30 @@ const fetchMovieData = async () => {
 
 // Load movie data saat component mounted
 onMounted(async () => {
+    console.log("=== PemesananFilm Mounted ===");
+    console.log("movieId:", route.params.movieId);
+    console.log("showtimeId from query:", route.query.showtimeId);
+
     await fetchMovieData();
     await fetchShowtimes(parseInt(route.params.movieId as string));
-    
+
     // Get showtimeId from query params and fetch seats
     const showtimeId = route.query.showtimeId;
     if (showtimeId) {
         const id = parseInt(showtimeId as string);
+        console.log("Parsed showtimeId:", id);
         // Find showtime from list
-        const showtime = showtimeList.value.find(st => st.id === id);
+        const showtime = showtimeList.value.find((st) => st.id === id);
+        console.log("Found showtime:", showtime);
         if (showtime) {
             selectedShowtime.value = showtime;
             await fetchSeats(id);
+            console.log("Seats loaded. Occupied:", occupiedSeats.value.length);
+        } else {
+            console.error("Showtime not found with id:", id);
         }
+    } else {
+        console.warn("No showtimeId in query params!");
     }
 });
 
@@ -507,12 +493,8 @@ const dates = computed(() => {
     return result.sort((a, b) => a.full.localeCompare(b.full));
 });
 
-
-
-
-
 // Data kursi
-const rows = ["H", "G", "F", "E", "D", "C", "B", "A"];
+const rows = ["A", "B", "C", "D", "E", "F", "G", "H"];
 const seatsPerRow = 10;
 const occupiedSeats = ref<string[]>([]);
 const allSeats = ref<any[]>([]);
@@ -562,6 +544,13 @@ const fetchShowtimes = async (movieId: number) => {
     }
 };
 
+// Select showtime and fetch seats
+const selectShowtime = async (showtime: any) => {
+    selectedShowtime.value = showtime;
+    await fetchSeats(showtime.id);
+    console.log("Showtime selected:", showtime);
+};
+
 // Pricing
 const TICKET_PRICE = 45000;
 const adminFee = 5000;
@@ -589,9 +578,6 @@ const getSeatStatus = (seatId: string) => {
 
 const getSeatClasses = (seatId: string) => {
     const status = getSeatStatus(seatId);
-    const row = seatId.charAt(0); // Get first character (row letter)
-    const isVIP = row === 'A' || row === 'B'; // VIP rows
-    
     const baseClasses =
         "w-8 h-8 rounded-md transition-all duration-200 flex items-center justify-center";
 
@@ -599,13 +585,9 @@ const getSeatClasses = (seatId: string) => {
         case "occupied":
             return `${baseClasses} bg-gray-400 cursor-not-allowed`;
         case "selected":
-            return `${baseClasses} bg-blue-500 text-white shadow-md scale-110`;
+            return `${baseClasses} bg-[#143C8C] text-white shadow-md scale-110`;
         default:
-            // Available seats - VIP or regular
-            if (isVIP) {
-                return `${baseClasses} bg-yellow-500 hover:bg-yellow-600 cursor-pointer`;
-            }
-            return `${baseClasses} bg-gray-600 hover:bg-gray-500 cursor-pointer`;
+            return `${baseClasses} bg-gray-200 hover:bg-gray-300 cursor-pointer`;
     }
 };
 
@@ -619,6 +601,18 @@ const formatDate = (dateStr: string | null) => {
         day: "numeric",
     };
     return d.toLocaleDateString("id-ID", options);
+};
+
+const formatDateTime = (dateTimeStr: string) => {
+    const d = new Date(dateTimeStr);
+    return d.toLocaleString("id-ID", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
 };
 
 const formatCurrency = (amount: number) =>
@@ -742,10 +736,18 @@ const handleConfirm = async () => {
     }
 };
 
-const canConfirm = computed(
-    () =>
+const canConfirm = computed(() => {
+    const result =
         !!selectedMovie.value.id &&
         !!selectedShowtime.value &&
-        selectedSeats.value.length > 0
-);
+        selectedSeats.value.length > 0;
+
+    console.log("=== canConfirm Check ===");
+    console.log("Movie ID:", selectedMovie.value.id);
+    console.log("Showtime:", selectedShowtime.value);
+    console.log("Selected Seats:", selectedSeats.value);
+    console.log("Can Confirm:", result);
+
+    return result;
+});
 </script>
