@@ -311,11 +311,11 @@ pub async fn get_jadwal_semua_film(State(state): State<AppState>) -> impl IntoRe
 pub fn workflow_routes() -> Router<AppState> {
     Router::new()
         .route("/jadwal/terdekat", get(get_jadwal_terdekat))
-        .route("/jadwal/studio/:studio_id", get(get_jadwal_by_studio))
-        .route("/jadwal/movie/:movie_id", get(get_jadwal_by_movie))
+        .route("/jadwal/studio/{studio_id}", get(get_jadwal_by_studio))
+        .route("/jadwal/movie/{movie_id}", get(get_jadwal_by_movie))
         .route("/jadwal/stats", get(get_jadwal_stats))
         .route("/jadwal/batch", get(get_jadwal_batch))
         .route("/jadwal/filter-kompleks", axum::routing::post(post_jadwal_filter_kompleks))
-        .route("/jadwal/film/:movie_id/semua-bioskop", get(get_jadwal_film_semua_bioskop))
+        .route("/jadwal/film/{movie_id}/semua-bioskop", get(get_jadwal_film_semua_bioskop))
         .route("/jadwal/semua-film", get(get_jadwal_semua_film))
 }
