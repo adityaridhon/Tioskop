@@ -1,163 +1,127 @@
-use crate::entities::{Studio, StudiosEntity};
-use crate::models::*;
+use crate::models::{studio::*, response::ApiResponse, DeleteResponse};
+use crate::services::studio;
 use axum::{
-    extract::{Path, State},
+    extract::{Path, Query, State},
     Json,
 };
-use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter};
+use sea_orm::DatabaseConnection;
+use serde::Deserialize;
 
-// Get all studios
-pub async fn get_all_studios(State(db): State<DatabaseConnection>) -> Json<ApiResponse<Vec<Studio>>> {
-    StudiosEntity::find()
-        .all(&db)
-        .await
-        .map(|studios| {
-            Json(ApiResponse::success(
-                "Berhasil mengambil semua studio",
-                studios,
-            ))
-        })
-        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+fn to_response<T>(result: Result<T, studio::StudioError>) -> Json<ApiResponse<T>> {
+    match result {
+        Ok(data) => Json(ApiResponse::success("Success", data)),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
 }
 
-// Get studio by ID
-pub async fn get_studio_by_id(
+#[derive(Deserialize)]
+pub struct SearchParams {
+    pub q: Option<String>,
+}
+
+#[derive(Deserialize)]
+pub struct MinCapacityParams {
+    pub min_capacity: Option<i32>,
+}
+
+/// Get all studios
+pub async fn get_all(State(db): State<DatabaseConnection>) -> Json<ApiResponse<Vec<Studio>>> {
+    to_response(studio::get_all(&db).await)
+}
+
+/// Get studio by ID
+pub async fn get_by_id(
     State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<Studio>> {
-    StudiosEntity::find_by_id(id)
-        .one(&db)
-        .await
-        .map(|studio_opt| {
-            studio_opt
-                .map(|studio| Json(ApiResponse::success("Berhasil mengambil studio", studio)))
-                .unwrap_or_else(|| Json(ApiResponse::error("Studio tidak ditemukan")))
-        })
-        .unwrap_or_else(|e| {
-            Json(ApiResponse::error(&format!(
-                "Database error: {}",
-                e
-            )))
-        })
+    to_response(studio::get_by_id(&db, id).await)
 }
 
-// Get studios by cinema_id
-pub async fn get_studios_by_cinema(
+/// Get studios by cinema ID
+pub async fn get_by_cinema(
     State(db): State<DatabaseConnection>,
     Path(cinema_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<Studio>>> {
-    use crate::entities::studios::Column;
-
-    StudiosEntity::find()
-        .filter(Column::CinemaId.eq(cinema_id))
-        .all(&db)
-        .await
-        .map(|studios| {
-            Json(ApiResponse::success(
-                "Berhasil mengambil studio untuk cinema ini",
-                studios,
-            ))
-        })
-        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+    to_response(studio::get_by_cinema(&db, cinema_id).await)
 }
 
-// Create studio
-pub async fn create_studio(
+/// Get studios by type
+pub async fn get_by_type(
+    State(db): State<DatabaseConnection>,
+    Path(studio_type): Path<String>,
+) -> Json<ApiResponse<Vec<Studio>>> {
+    to_response(studio::get_by_type(&db, &studio_type).await)
+}
+
+/// Get studios by minimum capacity
+pub async fn get_by_min_capacity(
+    State(db): State<DatabaseConnection>,
+    Query(params): Query<MinCapacityParams>,
+) -> Json<ApiResponse<Vec<Studio>>> {
+    let min_capacity = params.min_capacity.unwrap_or(0);
+    to_response(studio::get_by_min_capacity(&db, min_capacity).await)
+}
+
+/// Search studios by name
+pub async fn search(
+    State(db): State<DatabaseConnection>,
+    Query(params): Query<SearchParams>,
+) -> Json<ApiResponse<Vec<Studio>>> {
+    let query = params.q.unwrap_or_default();
+    to_response(studio::search(&db, &query).await)
+}
+
+/// Count studios by cinema
+pub async fn count_by_cinema(
+    State(db): State<DatabaseConnection>,
+    Path(cinema_id): Path<i64>,
+) -> Json<ApiResponse<u64>> {
+    to_response(studio::count_by_cinema(&db, cinema_id).await)
+}
+
+/// Count total studios
+pub async fn count_total(State(db): State<DatabaseConnection>) -> Json<ApiResponse<u64>> {
+    to_response(studio::count_total(&db).await)
+}
+
+/// Create new studio
+pub async fn create(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateStudioRequest>,
 ) -> Json<ApiResponse<Studio>> {
-    use crate::entities::studios::ActiveModel;
-
-    let new_studio = ActiveModel {
-        cinema_id: Set(Some(payload.cinema_id)),
-        name: Set(payload.name),
-        capacity: Set(payload.capacity),
-        r#type: Set(payload.r#type),
-        ..Default::default()
-    };
-
-    new_studio
-        .insert(&db)
+    studio::create(&db, payload)
         .await
         .map(|studio| Json(ApiResponse::success("Berhasil menambahkan studio", studio)))
-        .unwrap_or_else(|e| {
-            Json(ApiResponse::error(&format!("Database error: {}", e)))
-        })
+        .unwrap_or_else(|e| Json(ApiResponse::error(&e.to_string())))
 }
 
-// Update studio
-pub async fn update_studio(
+/// Update studio
+pub async fn update(
     State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
     Json(payload): Json<UpdateStudioRequest>,
 ) -> Json<ApiResponse<Studio>> {
-    use crate::entities::studios::ActiveModel;
-
-    let studio_exists = StudiosEntity::find_by_id(id).one(&db).await;
-
-    match studio_exists {
-        Ok(Some(existing_studio)) => {
-            let mut active_studio: ActiveModel = existing_studio.into();
-
-            if let Some(cinema_id) = payload.cinema_id {
-                active_studio.cinema_id = Set(Some(cinema_id));
-            }
-            if let Some(name) = payload.name {
-                active_studio.name = Set(name);
-            }
-            if let Some(capacity) = payload.capacity {
-                active_studio.capacity = Set(capacity);
-            }
-            if payload.r#type.is_some() {
-                active_studio.r#type = Set(payload.r#type);
-            }
-
-            active_studio
-                .update(&db)
-                .await
-                .map(|studio| Json(ApiResponse::success("Berhasil mengupdate studio", studio)))
-                .unwrap_or_else(|e| {
-                    Json(ApiResponse::error(&format!(
-                        "Failed to update studio: {}",
-                        e
-                    )))
-                })
-        }
-        Ok(None) => Json(ApiResponse::error(&format!(
-            "Studio dengan id {} tidak ditemukan",
-            id
-        ))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
-    }
+    studio::update(&db, id, payload)
+        .await
+        .map(|studio| Json(ApiResponse::success("Berhasil mengupdate studio", studio)))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&e.to_string())))
 }
 
-// Delete studio
+/// Delete studio
 pub async fn delete_studio(
     State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
 ) -> Json<ApiResponse<DeleteResponse>> {
-    use crate::entities::studios::ActiveModel;
-
-    let studio_check = StudiosEntity::find_by_id(id).one(&db).await;
-
-    match studio_check {
-        Ok(Some(studio)) => {
-            let active_studio: ActiveModel = studio.into();
-            active_studio
-                .delete(&db)
-                .await
-                .map(|_| {
-                    Json(ApiResponse::success(
-                        "Berhasil menghapus studio",
-                        DeleteResponse { id, deleted: true },
-                    ))
-                })
-                .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
-        }
-        Ok(None) => Json(ApiResponse::error(&format!(
-            "Studio dengan id {} tidak ditemukan",
-            id
-        ))),
-        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
-    }
+    studio::delete(&db, id)
+        .await
+        .map(|deleted_id| {
+            Json(ApiResponse::success(
+                "Berhasil menghapus studio",
+                DeleteResponse {
+                    id: deleted_id,
+                    deleted: true,
+                },
+            ))
+        })
+        .unwrap_or_else(|e| Json(ApiResponse::error(&e.to_string())))
 }

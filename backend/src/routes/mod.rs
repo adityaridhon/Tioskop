@@ -5,4 +5,3 @@ pub mod seat_routes;
 pub mod showtime_routes;
 pub mod studio_routes;
 pub mod workflow_routes;
-// middleware is a top-level module, not under routes
