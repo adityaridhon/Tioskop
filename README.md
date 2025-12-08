@@ -224,75 +224,111 @@ backend/
 **File:** `backend/src/main.rs`
 
 ```rust
-1   mod entities;
-2   mod handlers;
-3   mod middleware;
-4   mod models;
-5   mod routes;
-6   mod services;
-7   
-8   use axum::Router;
-9   use dotenvy::dotenv;
-10  use routes::workflow_routes::AppState as WorkflowAppState;
-11  use routes::{
-12      auth_routes::auth_routes, 
-13      booking_routes::booking_routes, 
-14      movie_routes::movie_routes,
-15      seat_routes::seat_routes, 
-16      showtime_routes::showtime_routes, 
-17      studio_routes::studio_routes,
-18      workflow_routes::workflow_routes,
-19  };
-20  use sea_orm::Database;
-21  use services::workflow_service::JadwalWorkflowService;
-22  use std::net::SocketAddr;
-23  use std::sync::Arc;
-24  use tower_http::cors::{Any, CorsLayer};
-25  
-26  #[tokio::main]
-27  async fn main() {
-28      dotenv().ok();
-29      
-30      let database_url = std::env::var("DATABASE_URL")
-31          .expect("DATABASE_URL must be set in .env file");
-32  
-33      let db = Database::connect(&database_url)
-34          .await
-35          .expect("Failed to connect to database");
-36      
-37      println!("Connected to database with SeaORM");
-38  
-39      let workflow_service = Arc::new(JadwalWorkflowService::new(db.clone()));
-40      println!("Workflow service initialized");
-41  
-42      let cors = CorsLayer::new()
-43          .allow_origin(Any)
-44          .allow_methods(Any)
-45          .allow_headers(Any);
-46  
-47      let workflow_state = WorkflowAppState {
-48          db: db.clone(),
-49          workflow_service: workflow_service.clone(),
-50      };
-51  
-52      let app = Router::new()
-53          .nest("/api/auth", auth_routes(db.clone()))
-54          .nest("/api/movies", movie_routes(db.clone()))
-55          .nest("/api/showtimes", showtime_routes(db.clone()))
-56          .nest("/api/studios", studio_routes(db.clone()))
-57          .nest("/api/seats", seat_routes(db.clone()))
-58          .nest("/api/bookings", booking_routes(db.clone()))
-59          .nest("/api/workflow", workflow_routes(workflow_state))
-60          .layer(cors);
-61  
-62      println!("All routes configured with SeaORM\n");
-63  
-64      let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-65      println!("Server running on http://{}", addr);
-66  
-67      let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
-68      axum::serve(listener, app).await.unwrap();
-69  }
+mod entities;
+mod handlers;
+mod middleware;
+mod models;
+mod routes;
+mod services;
+
+use axum::Router;
+use dotenvy::dotenv;
+use routes::workflow_routes::AppState as WorkflowAppState;
+use routes::{
+    auth_routes::auth_routes, booking_routes::booking_routes, movie_routes::movie_routes,
+    seat_routes::seat_routes, showtime_routes::showtime_routes, studio_routes::studio_routes,
+    workflow_routes,
+};
+use sea_orm::Database;
+use services::workflow_service::JadwalWorkflowService;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tower_http::cors::{Any, CorsLayer};
+
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+
+    // Setup SeaORM database connection (ONLY ONE CONNECTION NOW!)
+    let database_url =
+        std::env::var("DATABASE_URL").expect("DATABASE_URL must be set in .env file");
+
+    let db_connection = Database::connect(&database_url)
+        .await
+        .expect("Failed to connect to database with SeaORM");
+
+    println!("✓ Connected to database with SeaORM");
+
+    // Create workflow service
+    let workflow_service = Arc::new(JadwalWorkflowService::new(db_connection.clone()));
+
+    let workflow_state = WorkflowAppState {
+        workflow_service: workflow_service.clone(),
+    };
+
+    println!("✓ Workflow service initialized");
+
+    // Setup CORS
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
+    // Build all routes with SeaORM DatabaseConnection
+    let app_routes = Router::new()
+        .merge(auth_routes())
+        .merge(movie_routes())
+        .merge(showtime_routes())
+        .merge(studio_routes())
+        .merge(seat_routes())
+        .merge(booking_routes())
+        .with_state(db_connection);
+
+    // Build workflow routes with SeaORM
+    let workflow_router = Router::new()
+        .nest("/api/workflow", workflow_routes::workflow_routes())
+        .with_state(workflow_state);
+
+    // Combine all routes
+    let app = Router::new()
+        .merge(app_routes)
+        .merge(workflow_router)
+        .layer(cors);
+
+    println!("✓ All routes configured with SeaORM");
+
+    // Run server
+    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
+    println!("\n🚀 Server running on http://{}", addr);
+    println!("\n📋 API Endpoints:");
+    println!("   Auth:");
+    println!("     POST /api/auth/register");
+    println!("     POST /api/auth/login");
+    println!("   Movies:");
+    println!("     GET    /api/movies");
+    println!("     POST   /api/movies");
+    println!("     GET    /api/movies/search");
+    println!("     PATCH  /api/movies/:id");
+    println!("     DELETE /api/movies/:id");
+    println!("   Showtimes:");
+    println!("     GET    /api/showtimes");
+    println!("     POST   /api/showtimes");
+    println!("     GET    /api/showtimes/movie/:movie_id");
+    println!("     PATCH  /api/showtimes/:id");
+    println!("     DELETE /api/showtimes/:id");
+    println!("   Workflow:");
+    println!("     GET  /api/workflow/jadwal/terdekat");
+    println!("     GET  /api/workflow/jadwal/studio/:studio_id");
+    println!("     GET  /api/workflow/jadwal/movie/:movie_id");
+    println!("     GET  /api/workflow/jadwal/stats                           ");
+    println!("     GET  /api/workflow/jadwal/batch?chunk_size=100            ");
+    println!("     POST /api/workflow/jadwal/filter-kompleks                 ");
+    println!("     GET  /api/workflow/jadwal/film/:movie_id/semua-bioskop    ");
+    println!("     GET  /api/workflow/jadwal/semua-film                      ");
+
+    let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+}
 ```
 
 **Explanation:**
@@ -322,37 +358,38 @@ backend/
 **File:** `backend/src/entities/movies.rs`
 
 ```rust
-1   use sea_orm::entity::prelude::*;
-2   use serde::{Deserialize, Serialize};
-3   
-4   #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-5   #[sea_orm(table_name = "movies")]
-6   pub struct Model {
-7       #[sea_orm(primary_key)]
-8       pub id: i64,
-9       pub title: String,
-10      pub genre: Option<String>,
-11      pub rating: Option<String>,
-12      pub duration: Option<i32>,
-13      pub description: Option<String>,
-14      pub poster_url: Option<String>,
-15      pub release_date: Option<chrono::NaiveDate>,
-16      pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-17  }
-18  
-19  #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-20  pub enum Relation {
-21      #[sea_orm(has_many = "super::showtimes::Entity")]
-22      Showtimes,
-23  }
-24  
-25  impl Related<super::showtimes::Entity> for Entity {
-26      fn to() -> RelationDef {
-27          Relation::Showtimes.def()
-28      }
-29  }
-30  
-31  impl ActiveModelBehavior for ActiveModel {}
+use chrono::NaiveDate;
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "movies")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    pub title: String,
+    pub genre: Option<String>,
+    pub rating: Option<String>,
+    pub duration: Option<i32>,
+    pub description: Option<String>,
+    pub poster_url: Option<String>,
+    pub release_date: Option<NaiveDate>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(has_many = "super::showtimes::Entity")]
+    Showtimes,
+}
+
+impl Related<super::showtimes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Showtimes.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
+
 ```
 
 **Explanation:**
@@ -387,60 +424,61 @@ backend/
 **File:** `backend/src/entities/bookings.rs`
 
 ```rust
-1   use rust_decimal::Decimal;
-2   use sea_orm::entity::prelude::*;
-3   use serde::{Deserialize, Serialize};
-4   
-5   #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-6   #[sea_orm(table_name = "bookings")]
-7   pub struct Model {
-8       #[sea_orm(primary_key)]
-9       pub id: i64,
-10      pub user_id: i64,
-11      pub showtime_id: i64,
-12      pub booking_code: String,
-13      pub total_price: Decimal,
-14      pub payment_status: String,
-15      pub created_at: Option<chrono::DateTime<chrono::Utc>>,
-16  }
-17  
-18  #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-19  pub enum Relation {
-20      #[sea_orm(
-21          belongs_to = "super::users::Entity",
-22          from = "Column::UserId",
-23          to = "super::users::Column::Id"
-24      )]
-25      Users,
-26      #[sea_orm(
-27          belongs_to = "super::showtimes::Entity",
-28          from = "Column::ShowtimeId",
-29          to = "super::showtimes::Column::Id"
-30      )]
-31      Showtimes,
-32      #[sea_orm(has_many = "super::booking_seats::Entity")]
-33      BookingSeats,
-34  }
-35  
-36  impl Related<super::users::Entity> for Entity {
-37      fn to() -> RelationDef {
-38          Relation::Users.def()
-39      }
-40  }
-41  
-42  impl Related<super::showtimes::Entity> for Entity {
-43      fn to() -> RelationDef {
-44          Relation::Showtimes.def()
-45      }
-46  }
-47  
-48  impl Related<super::booking_seats::Entity> for Entity {
-49      fn to() -> RelationDef {
-50          Relation::BookingSeats.def()
-51      }
-52  }
-53  
-54  impl ActiveModelBehavior for ActiveModel {}
+use chrono::NaiveDateTime;
+use rust_decimal::Decimal;
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "bookings")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    pub user_id: Option<i64>,
+    pub showtime_id: Option<i64>,
+    pub booking_code: String,
+    pub total_price: Option<Decimal>,
+    pub payment_status: String,
+    pub created_at: Option<NaiveDateTime>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::users::Entity",
+        from = "Column::UserId",
+        to = "super::users::Column::Id"
+    )]
+    Users,
+    #[sea_orm(
+        belongs_to = "super::showtimes::Entity",
+        from = "Column::ShowtimeId",
+        to = "super::showtimes::Column::Id"
+    )]
+    Showtimes,
+    #[sea_orm(has_many = "super::booking_seats::Entity")]
+    BookingSeats,
+}
+
+impl Related<super::users::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Users.def()
+    }
+}
+
+impl Related<super::showtimes::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Showtimes.def()
+    }
+}
+
+impl Related<super::booking_seats::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::BookingSeats.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
 ```
 
 **Explanation:**
@@ -466,46 +504,46 @@ backend/
 **File:** `backend/src/entities/seats.rs`
 
 ```rust
-1   use sea_orm::entity::prelude::*;
-2   use serde::{Deserialize, Serialize};
-3   
-4   #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-5   #[sea_orm(table_name = "seats")]
-6   pub struct Model {
-7       #[sea_orm(primary_key)]
-8       pub id: i64,
-9       pub studio_id: i64,
-10      pub seat_code: String,
-11      pub seat_row: i32,
-12      pub seat_col: i32,
-13      pub seat_status: String,
-14  }
-15  
-16  #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-17  pub enum Relation {
-18      #[sea_orm(
-19          belongs_to = "super::studios::Entity",
-20          from = "Column::StudioId",
-21          to = "super::studios::Column::Id"
-22      )]
-23      Studios,
-24      #[sea_orm(has_many = "super::booking_seats::Entity")]
-25      BookingSeats,
-26  }
-27  
-28  impl Related<super::studios::Entity> for Entity {
-29      fn to() -> RelationDef {
-30          Relation::Studios.def()
-31      }
-32  }
-33  
-34  impl Related<super::booking_seats::Entity> for Entity {
-35      fn to() -> RelationDef {
-36          Relation::BookingSeats.def()
-37      }
-38  }
-39  
-40  impl ActiveModelBehavior for ActiveModel {}
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "seats")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    pub studio_id: Option<i64>,
+    pub seat_code: String,
+    pub seat_row: Option<i32>,
+    pub seat_col: Option<i32>,
+    pub seat_status: Option<String>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::studios::Entity",
+        from = "Column::StudioId",
+        to = "super::studios::Column::Id"
+    )]
+    Studios,
+    #[sea_orm(has_many = "super::booking_seats::Entity")]
+    BookingSeats,
+}
+
+impl Related<super::studios::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Studios.def()
+    }
+}
+
+impl Related<super::booking_seats::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::BookingSeats.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
 ```
 
 **Explanation:**
@@ -525,58 +563,59 @@ backend/
 **File:** `backend/src/entities/showtimes.rs`
 
 ```rust
-1   use rust_decimal::Decimal;
-2   use sea_orm::entity::prelude::*;
-3   use serde::{Deserialize, Serialize};
-4   
-5   #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
-6   #[sea_orm(table_name = "showtimes")]
-7   pub struct Model {
-8       #[sea_orm(primary_key)]
-9       pub id: i64,
-10      pub movie_id: i64,
-11      pub studio_id: i64,
-12      pub start_time: chrono::DateTime<chrono::Utc>,
-13      pub price: Decimal,
-14  }
-15  
-16  #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
-17  pub enum Relation {
-18      #[sea_orm(
-19          belongs_to = "super::movies::Entity",
-20          from = "Column::MovieId",
-21          to = "super::movies::Column::Id"
-22      )]
-23      Movies,
-24      #[sea_orm(
-25          belongs_to = "super::studios::Entity",
-26          from = "Column::StudioId",
-27          to = "super::studios::Column::Id"
-28      )]
-29      Studios,
-30      #[sea_orm(has_many = "super::bookings::Entity")]
-31      Bookings,
-32  }
-33  
-34  impl Related<super::movies::Entity> for Entity {
-35      fn to() -> RelationDef {
-36          Relation::Movies.def()
-37      }
-38  }
-39  
-40  impl Related<super::studios::Entity> for Entity {
-41      fn to() -> RelationDef {
-42          Relation::Studios.def()
-43      }
-44  }
-45  
-46  impl Related<super::bookings::Entity> for Entity {
-47      fn to() -> RelationDef {
-48          Relation::Bookings.def()
-49      }
-50  }
-51  
-52  impl ActiveModelBehavior for ActiveModel {}
+use chrono::{DateTime, Local};
+use rust_decimal::Decimal;
+use sea_orm::entity::prelude::*;
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Serialize, Deserialize)]
+#[sea_orm(table_name = "showtimes")]
+pub struct Model {
+    #[sea_orm(primary_key)]
+    pub id: i64,
+    pub movie_id: Option<i64>,
+    pub studio_id: Option<i64>,
+    pub start_time: Option<DateTime<Local>>,
+    pub price: Option<Decimal>,
+}
+
+#[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
+pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::movies::Entity",
+        from = "Column::MovieId",
+        to = "super::movies::Column::Id"
+    )]
+    Movies,
+    #[sea_orm(
+        belongs_to = "super::studios::Entity",
+        from = "Column::StudioId",
+        to = "super::studios::Column::Id"
+    )]
+    Studios,
+    #[sea_orm(has_many = "super::bookings::Entity")]
+    Bookings,
+}
+
+impl Related<super::movies::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Movies.def()
+    }
+}
+
+impl Related<super::studios::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Studios.def()
+    }
+}
+
+impl Related<super::bookings::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Bookings.def()
+    }
+}
+
+impl ActiveModelBehavior for ActiveModel {}
 ```
 
 **Explanation:**
@@ -596,157 +635,98 @@ backend/
 **File:** `backend/src/handlers/movie_handler.rs`
 
 ```rust
-1   use crate::{
-2       entities::movies::{self, Entity as MoviesEntity},
-3       models::response::ApiResponse,
-4   };
-5   use axum::{
-6       extract::{Path, Query, State},
-7       http::StatusCode,
-8       Json,
-9   };
-10  use sea_orm::{
-11      ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
-12      Set,
-13  };
-14  use serde::{Deserialize, Serialize};
-15  use std::collections::HashMap;
-16  
-17  #[derive(Debug, Deserialize)]
-18  pub struct CreateMovieRequest {
-19      pub title: String,
-20      pub genre: Option<String>,
-21      pub rating: Option<String>,
-22      pub duration: Option<i32>,
-23      pub description: Option<String>,
-24      pub poster_url: Option<String>,
-25      pub release_date: Option<String>,
-26  }
-27  
-28  pub async fn get_all_movies(
-29      State(db): State<DatabaseConnection>,
-30  ) -> Result<Json<ApiResponse<Vec<movies::Model>>>, StatusCode> {
-31      match MoviesEntity::find().all(&db).await {
-32          Ok(movies) => Ok(Json(ApiResponse::success(movies))),
-33          Ok(None) => Err(StatusCode::NOT_FOUND),
-34          Err(e) => {
-35              eprintln!("Database error: {}", e);
-36              Err(StatusCode::INTERNAL_SERVER_ERROR)
-37          }
-38      }
-39  }
-40  
-41  pub async fn get_movie_by_id(
-42      State(db): State<DatabaseConnection>,
-43      Path(id): Path<i64>,
-44  ) -> Result<Json<ApiResponse<movies::Model>>, StatusCode> {
-45      match MoviesEntity::find_by_id(id).one(&db).await {
-46          Ok(Some(movie)) => Ok(Json(ApiResponse::success(movie))),
-47          Ok(None) => Err(StatusCode::NOT_FOUND),
-48          Err(e) => {
-49              eprintln!("Database error: {}", e);
-50              Err(StatusCode::INTERNAL_SERVER_ERROR)
-51          }
-52      }
-53  }
-54  
-55  pub async fn search_movies(
-56      State(db): State<DatabaseConnection>,
-57      Query(params): Query<HashMap<String, String>>,
-58  ) -> Result<Json<ApiResponse<Vec<movies::Model>>>, StatusCode> {
-59      let search_query = params.get("q").map(|s| s.as_str()).unwrap_or("");
-60  
-61      match MoviesEntity::find()
-62          .filter(movies::Column::Title.contains(search_query))
-63          .all(&db)
-64          .await
-65      {
-66          Ok(movies) => Ok(Json(ApiResponse::success(movies))),
-67          Ok(None) => Err(StatusCode::NOT_FOUND),
-68          Err(e) => {
-69              eprintln!("Database error: {}", e);
-70              Err(StatusCode::INTERNAL_SERVER_ERROR)
-71          }
-72      }
-73  }
-74  
-75  pub async fn create_movie(
-76      State(db): State<DatabaseConnection>,
-77      Json(payload): Json<CreateMovieRequest>,
-78  ) -> Result<Json<ApiResponse<movies::Model>>, StatusCode> {
-79      let release_date = payload.release_date.and_then(|date_str| {
-80          chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok()
-81      });
-82  
-83      let movie = movies::ActiveModel {
-84          title: Set(payload.title),
-85          genre: Set(payload.genre),
-86          rating: Set(payload.rating),
-87          duration: Set(payload.duration),
-88          description: Set(payload.description),
-89          poster_url: Set(payload.poster_url),
-90          release_date: Set(release_date),
-91          ..Default::default()
-92      };
-93  
-94      match movie.insert(&db).await {
-95          Ok(inserted_movie) => Ok(Json(ApiResponse::success(inserted_movie))),
-96          Err(e) => {
-97              eprintln!("Database error: {}", e);
-98              Err(StatusCode::INTERNAL_SERVER_ERROR)
-99          }
-100     }
-101 }
-102 
-103 pub async fn update_movie(
-104     State(db): State<DatabaseConnection>,
-105     Path(id): Path<i64>,
-106     Json(payload): Json<CreateMovieRequest>,
-107 ) -> Result<Json<ApiResponse<movies::Model>>, StatusCode> {
-108     let movie = match MoviesEntity::find_by_id(id).one(&db).await {
-109         Ok(Some(m)) => m,
-110         Ok(None) => return Err(StatusCode::NOT_FOUND),
-111         Err(e) => {
-112             eprintln!("Database error: {}", e);
-113             return Err(StatusCode::INTERNAL_SERVER_ERROR);
-114         }
-115     };
-116 
-117     let release_date = payload.release_date.and_then(|date_str| {
-118         chrono::NaiveDate::parse_from_str(&date_str, "%Y-%m-%d").ok()
-119     });
-120 
-121     let mut active_movie: movies::ActiveModel = movie.into_active_model();
-122     active_movie.title = Set(payload.title);
-123     active_movie.genre = Set(payload.genre);
-124     active_movie.rating = Set(payload.rating);
-125     active_movie.duration = Set(payload.duration);
-126     active_movie.description = Set(payload.description);
-127     active_movie.poster_url = Set(payload.poster_url);
-128     active_movie.release_date = Set(release_date);
-129 
-130     match active_movie.update(&db).await {
-131         Ok(updated_movie) => Ok(Json(ApiResponse::success(updated_movie))),
-132         Err(e) => {
-133             eprintln!("Database error: {}", e);
-134             Err(StatusCode::INTERNAL_SERVER_ERROR)
-135         }
-136     }
-137 }
-138 
-139 pub async fn delete_movie(
-140     State(db): State<DatabaseConnection>,
-141     Path(id): Path<i64>,
-142 ) -> Result<StatusCode, StatusCode> {
-143     match MoviesEntity::delete_by_id(id).exec(&db).await {
-144         Ok(result) if result.rows_affected > 0 => Ok(StatusCode::NO_CONTENT),
-145         Ok(_) => Err(StatusCode::NOT_FOUND),
-146         Err(e) => {
-147             eprintln!("Database error: {}", e);
-148             Err(StatusCode::INTERNAL_SERVER_ERROR)
-149         }
-150     }
-151 }
+use crate::models::{movie::*, response::ApiResponse, DeleteResponse};
+use crate::services::movie;
+use axum::{
+    extract::{Path, Query, State},
+    Json,
+};
+use sea_orm::DatabaseConnection;
+
+fn to_response<T>(result: Result<T, movie::MovieError>) -> Json<ApiResponse<T>> {
+    match result {
+        Ok(data) => Json(ApiResponse::success("Success", data)),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
+}
+
+/// Get all movies
+pub async fn get_all(
+    State(db): State<DatabaseConnection>,
+) -> Json<ApiResponse<Vec<crate::entities::Movie>>> {
+    to_response(movie::get_all(&db).await)
+}
+
+/// Search movies
+pub async fn search(
+    State(db): State<DatabaseConnection>,
+    Query(params): Query<SearchParams>,
+) -> Json<ApiResponse<Vec<crate::entities::Movie>>> {
+    to_response(movie::search(&db, params.q).await)
+}
+
+/// Get movie by ID
+pub async fn get_by_id(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<i64>,
+) -> Json<ApiResponse<crate::entities::Movie>> {
+    to_response(movie::get_by_id(&db, id).await)
+}
+
+/// Create movie
+pub async fn create(
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<CreateMovieRequest>,
+) -> Json<ApiResponse<crate::entities::Movie>> {
+    to_response(movie::create(&db, payload).await)
+}
+
+/// Update movie
+pub async fn update(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<i64>,
+    Json(payload): Json<UpdateMovieRequest>,
+) -> Json<ApiResponse<crate::entities::Movie>> {
+    to_response(movie::update(&db, id, payload).await)
+}
+
+/// Delete movie
+pub async fn delete_movie(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<i64>,
+) -> Json<ApiResponse<DeleteResponse>> {
+    movie::delete(&db, id)
+        .await
+        .map(|id| {
+            Json(ApiResponse::success(
+                "Berhasil menghapus film",
+                DeleteResponse { id, deleted: true },
+            ))
+        })
+        .unwrap_or_else(|e| Json(ApiResponse::error(&e.to_string())))
+}
+/// Get movies by genre
+pub async fn get_by_genre(
+    State(db): State<DatabaseConnection>,
+    Path(genre): Path<String>,
+) -> Json<ApiResponse<Vec<crate::entities::Movie>>> {
+    to_response(movie::get_by_genre(&db, &genre).await)
+}
+
+/// Get movies by rating
+pub async fn get_by_rating(
+    State(db): State<DatabaseConnection>,
+    Path(rating): Path<String>,
+) -> Json<ApiResponse<Vec<crate::entities::Movie>>> {
+    to_response(movie::get_by_rating(&db, &rating).await)
+}
+
+/// Get latest movies
+pub async fn get_latest(
+    State(db): State<DatabaseConnection>,
+) -> Json<ApiResponse<Vec<crate::entities::Movie>>> {
+    to_response(movie::get_latest(&db, 10).await)
+}
 ```
 
 **Explanation:**
@@ -814,132 +794,68 @@ backend/
 **File:** `backend/src/handlers/booking_handler.rs`
 
 ```rust
-1   use crate::{
-2       entities::{
-3           booking_seats::{self, Entity as BookingSeatsEntity},
-4           bookings::{self, Entity as BookingsEntity},
-5           seats::{self, Entity as SeatsEntity},
-6           showtimes::{self, Entity as ShowtimesEntity},
-7       },
-8       models::response::ApiResponse,
-9   };
-10  use axum::{extract::State, http::StatusCode, Json};
-11  use chrono::Utc;
-12  use rust_decimal::Decimal;
-13  use sea_orm::{
-14      ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, IntoActiveModel, QueryFilter,
-15      Set, TransactionTrait,
-16  };
-17  use serde::{Deserialize, Serialize};
-18  
-19  #[derive(Debug, Deserialize)]
-20  pub struct CreateBookingRequest {
-21      pub user_id: i64,
-22      pub showtime_id: i64,
-23      pub seat_ids: Vec<i64>,
-24  }
-25  
-26  #[derive(Debug, Serialize)]
-27  pub struct BookingResponse {
-28      pub booking_id: i64,
-29      pub booking_code: String,
-30      pub total_price: String,
-31      pub seats: Vec<String>,
-32  }
-33  
-34  pub async fn create_booking(
-35      State(db): State<DatabaseConnection>,
-36      Json(payload): Json<CreateBookingRequest>,
-37  ) -> Result<Json<ApiResponse<BookingResponse>>, StatusCode> {
-38      if payload.seat_ids.is_empty() {
-39          return Err(StatusCode::BAD_REQUEST);
-40      }
-41  
-42      let txn = db.begin().await.map_err(|e| {
-43          eprintln!("Transaction error: {}", e);
-44          StatusCode::INTERNAL_SERVER_ERROR
-45      })?;
-46  
-47      let showtime = ShowtimesEntity::find_by_id(payload.showtime_id)
-48          .one(&txn)
-49          .await
-50          .map_err(|e| {
-51              eprintln!("Database error: {}", e);
-52              StatusCode::INTERNAL_SERVER_ERROR
-53          })?
-54          .ok_or(StatusCode::NOT_FOUND)?;
-55  
-56      let seats = SeatsEntity::find()
-57          .filter(seats::Column::Id.is_in(payload.seat_ids.clone()))
-58          .all(&txn)
-59          .await
-60          .map_err(|e| {
-61              eprintln!("Database error: {}", e);
-62              StatusCode::INTERNAL_SERVER_ERROR
-63          })?;
-64  
-65      if seats.len() != payload.seat_ids.len() {
-66          txn.rollback().await.ok();
-67          return Err(StatusCode::BAD_REQUEST);
-68      }
-69  
-70      let booking_code = format!("BK{}", Utc::now().timestamp());
-71      let total_price = showtime.price * Decimal::from(seats.len());
-72  
-73      let booking = bookings::ActiveModel {
-74          user_id: Set(payload.user_id),
-75          showtime_id: Set(payload.showtime_id),
-76          booking_code: Set(booking_code.clone()),
-77          total_price: Set(total_price),
-78          payment_status: Set("PENDING".to_string()),
-79          ..Default::default()
-80      };
-81  
-82      let inserted_booking = booking.insert(&txn).await.map_err(|e| {
-83          eprintln!("Insert error: {}", e);
-84          StatusCode::INTERNAL_SERVER_ERROR
-85      })?;
-86  
-87      for seat in &seats {
-88          let booking_seat = booking_seats::ActiveModel {
-89              booking_id: Set(inserted_booking.id),
-90              seat_id: Set(seat.id),
-91              price: Set(showtime.price),
-92              ..Default::default()
-93          };
-94  
-95          booking_seat.insert(&txn).await.map_err(|e| {
-96              eprintln!("Insert error: {}", e);
-97              StatusCode::INTERNAL_SERVER_ERROR
-98          })?;
-99      }
-100 
-101     txn.commit().await.map_err(|e| {
-102         eprintln!("Commit error: {}", e);
-103         StatusCode::INTERNAL_SERVER_ERROR
-104     })?;
-105 
-106     let response = BookingResponse {
-107         booking_id: inserted_booking.id,
-108         booking_code,
-109         total_price: total_price.to_string(),
-110         seats: seats.iter().map(|s| s.seat_code.clone()).collect(),
-111     };
-112 
-113     Ok(Json(ApiResponse::success(response)))
-114 }
-115 
-116 pub async fn get_bookings(
-117     State(db): State<DatabaseConnection>,
-118 ) -> Result<Json<ApiResponse<Vec<bookings::Model>>>, StatusCode> {
-119     match BookingsEntity::find().all(&db).await {
-120         Ok(bookings) => Ok(Json(ApiResponse::success(bookings))),
-121         Err(e) => {
-122             eprintln!("Database error: {}", e);
-123             Err(StatusCode::INTERNAL_SERVER_ERROR)
-124         }
-125     }
-126 }
+use crate::middleware::auth::AuthUser;
+use crate::models::{booking::*, response::ApiResponse};
+use crate::services::booking;
+use axum::{extract::{Path, State}, Json};
+use sea_orm::DatabaseConnection;
+
+fn to_response<T>(result: Result<T, booking::BookingError>) -> Json<ApiResponse<T>> {
+    match result {
+        Ok(data) => Json(ApiResponse::success("Success", data)),
+        Err(e) => Json(ApiResponse::error(&e.to_string())),
+    }
+}
+
+pub async fn get_all(
+    State(db): State<DatabaseConnection>,
+) -> Json<ApiResponse<Vec<crate::entities::Booking>>> {
+    to_response(booking::get_all(&db).await)
+}
+
+pub async fn get_by_id(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<i64>,
+) -> Json<ApiResponse<BookingDetail>> {
+    to_response(booking::get_detail(&db, id).await)
+}
+
+pub async fn get_by_user(
+    State(db): State<DatabaseConnection>,
+    Path(user_id): Path<i64>,
+) -> Json<ApiResponse<Vec<crate::entities::Booking>>> {
+    to_response(booking::get_by_user(&db, user_id).await)
+}
+
+pub async fn create(
+    AuthUser(user_id): AuthUser,
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<CreateBookingRequest>,
+) -> Json<ApiResponse<BookingDetail>> {
+    to_response(booking::create(&db, user_id, payload).await)
+}
+
+pub async fn update_payment(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<i64>,
+    Json(payload): Json<UpdatePaymentStatusRequest>,
+) -> Json<ApiResponse<crate::entities::Booking>> {
+    to_response(booking::update_payment(&db, id, payload.payment_status).await)
+}
+
+pub async fn cancel(
+    State(db): State<DatabaseConnection>,
+    Path(id): Path<i64>,
+) -> Json<ApiResponse<crate::entities::Booking>> {
+    to_response(booking::cancel(&db, id).await)
+}
+
+pub async fn get_booked_seats(
+    State(db): State<DatabaseConnection>,
+    Path(showtime_id): Path<i64>,
+) -> Json<ApiResponse<Vec<String>>> {
+    to_response(booking::get_booked_seats(&db, showtime_id).await)
+}
 ```
 
 **Explanation:**
@@ -1030,81 +946,578 @@ backend/
 **File:** `backend/src/services/workflow_service.rs`
 
 ```rust
-1   use crate::entities::{
-2       cinemas::{self, Entity as CinemasEntity},
-3       movies::{self, Entity as MoviesEntity},
-4       showtimes::{self, Entity as ShowtimesEntity},
-5       studios::{self, Entity as StudiosEntity},
-6   };
-7   use chrono::{DateTime, Utc};
-8   use sea_orm::{ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, QueryOrder};
-9   use serde::{Deserialize, Serialize};
-10  use std::collections::HashMap;
-11  
-12  #[derive(Debug, Clone, Serialize, Deserialize)]
-13  pub struct JadwalTerdekat {
-14      pub showtime_id: i64,
-15      pub movie_id: i64,
-16      pub movie_title: String,
-17      pub movie_poster: Option<String>,
-18      pub cinema_name: String,
-19      pub studio_name: String,
-20      pub start_time: DateTime<Utc>,
-21      pub price: String,
-22  }
-23  
-24  pub struct JadwalWorkflowService {
-25      db: DatabaseConnection,
-26  }
-27  
-28  impl JadwalWorkflowService {
-29      pub fn new(db: DatabaseConnection) -> Self {
-30          Self { db }
-31      }
-32  
-33      pub async fn execute_workflow(&self) -> Result<Vec<JadwalTerdekat>, sea_orm::DbErr> {
-34          let now = Utc::now();
-35  
-36          let showtimes = ShowtimesEntity::find()
-37              .filter(showtimes::Column::StartTime.gte(now))
-38              .order_by_asc(showtimes::Column::StartTime)
-39              .all(&self.db)
-40              .await?;
-41  
-42          let mut results = Vec::new();
-43  
-44          for showtime in showtimes {
-45              let movie = MoviesEntity::find_by_id(showtime.movie_id)
-46                  .one(&self.db)
-47                  .await?;
-48  
-49              let studio = StudiosEntity::find_by_id(showtime.studio_id)
-50                  .one(&self.db)
-51                  .await?;
-52  
-53              if let (Some(movie), Some(studio)) = (movie, studio) {
-54                  let cinema = CinemasEntity::find_by_id(studio.cinema_id)
-55                      .one(&self.db)
-56                      .await?;
-57  
-58                  if let Some(cinema) = cinema {
-59                      results.push(JadwalTerdekat {
-60                          showtime_id: showtime.id,
-61                          movie_id: movie.id,
-62                          movie_title: movie.title,
-63                          movie_poster: movie.poster_url,
-64                          cinema_name: cinema.name,
-65                          studio_name: studio.name,
-66                          start_time: showtime.start_time,
-67                          price: showtime.price.to_string(),
-68                      });
-69                  }
-70              }
-71          }
-72  
-73          Ok(results)
-74      }
-75  }
+
+use crate::entities::{Showtime, ShowtimesEntity};
+use chrono::{DateTime, Local};
+use rayon::prelude::*;
+use rust_decimal::Decimal;
+use rust_decimal::prelude::ToPrimitive;
+use sea_orm::{DatabaseConnection, EntityTrait};
+use std::collections::HashMap;
+
+#[derive(Debug, Clone)]
+pub enum StatusJadwal {
+    Mendesak {
+        jadwal_id: i64,
+        waktu_mulai: DateTime<Local>,
+        selisih_menit: i64,
+    },
+    Aman {
+        jadwal_id: i64,
+        waktu_mulai: DateTime<Local>,
+    },
+    Selesai {
+        jadwal_id: i64,
+        waktu_selesai: DateTime<Local>,
+    },
+}
+
+#[derive(Debug)]
+pub enum HasilAnalisa {
+    JadwalTerdekat(StatusJadwal),
+    TidakAdaJadwal,
+    Error(String),
+}
+
+#[derive(Debug, Clone)]
+pub struct JadwalStatistik {
+    pub total_jadwal: usize,
+    pub jadwal_hari_ini: usize,
+    pub jadwal_minggu_ini: usize,
+    pub jadwal_mendesak: usize,
+    pub harga_rata_rata: f64,
+    pub harga_tertinggi: Option<Decimal>,
+    pub harga_terendah: Option<Decimal>,
+    pub studio_terpopuler: Option<i64>,
+    pub movie_terpopuler: Option<i64>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FilterKriteria {
+    pub studio_id: Option<i64>,
+    pub movie_id: Option<i64>,
+    pub min_harga: Option<Decimal>,
+    pub max_harga: Option<Decimal>,
+    pub hari_ini_saja: bool,
+    pub hanya_mendesak: bool,
+}
+
+pub struct JadwalWorkflowService {
+    db: DatabaseConnection,
+}
+
+impl JadwalWorkflowService {
+    pub fn new(db: DatabaseConnection) -> Self {
+        Self { db }
+    }
+
+    // ========================================================================
+    // DATABASE LAYER - SeaORM
+    // ========================================================================
+    
+    pub async fn fetch_jadwal_dari_db(&self) -> Result<Vec<Showtime>, sea_orm::DbErr> {
+        ShowtimesEntity::find().all(&self.db).await
+    }
+
+    // ========================================================================
+    // RAYON MULTIPROCESSING - PARALLEL OPERATIONS
+    // ========================================================================
+    
+    /// RAYON: Cari jadwal terdekat dengan parallel processing
+    pub fn cari_jadwal_terdekat(jadwal_slice: &[Showtime]) -> HasilAnalisa {
+        if jadwal_slice.is_empty() {
+            return HasilAnalisa::TidakAdaJadwal;
+        }
+
+        let waktu_sekarang = Local::now();
+
+        let jadwal_terdekat = jadwal_slice
+            .par_iter()
+            .filter_map(|jadwal| jadwal.start_time.map(|st| (jadwal, st)))
+            .filter(|(_, start_time)| *start_time > waktu_sekarang)
+            .min_by_key(|(_, start_time)| (*start_time - waktu_sekarang).num_seconds());
+
+        match jadwal_terdekat {
+            Some((jadwal, start_time)) => {
+                let selisih = start_time - waktu_sekarang;
+                let selisih_menit = selisih.num_minutes();
+
+                if selisih_menit <= 30 {
+                    HasilAnalisa::JadwalTerdekat(StatusJadwal::Mendesak {
+                        jadwal_id: jadwal.id,
+                        waktu_mulai: start_time,
+                        selisih_menit,
+                    })
+                } else {
+                    HasilAnalisa::JadwalTerdekat(StatusJadwal::Aman {
+                        jadwal_id: jadwal.id,
+                        waktu_mulai: start_time,
+                    })
+                }
+            }
+            None => HasilAnalisa::TidakAdaJadwal,
+        }
+    }
+
+    /// RAYON: Filter jadwal terdekat per film di semua bioskop (parallel grouping)
+    pub fn filter_jadwal_terdekat_per_film(jadwal_slice: &[Showtime]) -> Vec<(i64, StatusJadwal)> {
+        let waktu_sekarang = Local::now();
+        
+        // RAYON: Parallel grouping by movie_id
+        let jadwal_by_movie: HashMap<i64, Vec<&Showtime>> = jadwal_slice
+            .par_iter()
+            .filter_map(|j| j.movie_id.map(|mid| (mid, j)))
+            .fold(
+                HashMap::new,
+                |mut map: HashMap<i64, Vec<&Showtime>>, (movie_id, jadwal)| {
+                    map.entry(movie_id).or_insert_with(Vec::new).push(jadwal);
+                    map
+                },
+            )
+            .reduce(
+                HashMap::new,
+                |mut map1, map2| {
+                    for (k, mut v) in map2 {
+                        map1.entry(k).or_insert_with(Vec::new).append(&mut v);
+                    }
+                    map1
+                },
+            );
+        
+        // RAYON: Parallel search jadwal terdekat per film
+        jadwal_by_movie
+            .par_iter()
+            .filter_map(|(movie_id, jadwal_list)| {
+                let jadwal_terdekat = jadwal_list
+                    .par_iter()
+                    .filter_map(|jadwal| jadwal.start_time.map(|st| (*jadwal, st)))
+                    .filter(|(_, start_time)| *start_time > waktu_sekarang)
+                    .min_by_key(|(_, start_time)| (*start_time - waktu_sekarang).num_seconds());
+                
+                jadwal_terdekat.map(|(jadwal, start_time)| {
+                    let selisih = start_time - waktu_sekarang;
+                    let selisih_menit = selisih.num_minutes();
+                    
+                    let status = if selisih_menit <= 30 {
+                        StatusJadwal::Mendesak {
+                            jadwal_id: jadwal.id,
+                            waktu_mulai: start_time,
+                            selisih_menit,
+                        }
+                    } else {
+                        StatusJadwal::Aman {
+                            jadwal_id: jadwal.id,
+                            waktu_mulai: start_time,
+                        }
+                    };
+                    
+                    (*movie_id, status)
+                })
+            })
+            .collect()
+    }
+    
+    /// RAYON: Filter jadwal terdekat untuk 1 film di semua bioskop (parallel grouping)
+    pub fn filter_jadwal_terdekat_film_semua_bioskop(
+        jadwal_slice: &[Showtime],
+        movie_id: i64,
+    ) -> Vec<(i64, StatusJadwal)> {
+        let waktu_sekarang = Local::now();
+        
+        // RAYON: Parallel filter & grouping by studio
+        let jadwal_by_studio: HashMap<i64, Vec<&Showtime>> = jadwal_slice
+            .par_iter()
+            .filter(|j| j.movie_id == Some(movie_id))
+            .filter_map(|j| j.studio_id.map(|sid| (sid, j)))
+            .fold(
+                HashMap::new,
+                |mut map: HashMap<i64, Vec<&Showtime>>, (studio_id, jadwal)| {
+                    map.entry(studio_id).or_insert_with(Vec::new).push(jadwal);
+                    map
+                },
+            )
+            .reduce(
+                HashMap::new,
+                |mut map1, map2| {
+                    for (k, mut v) in map2 {
+                        map1.entry(k).or_insert_with(Vec::new).append(&mut v);
+                    }
+                    map1
+                },
+            );
+        
+        // RAYON: Parallel search jadwal terdekat per bioskop
+        jadwal_by_studio
+            .par_iter()
+            .filter_map(|(studio_id, jadwal_list)| {
+                let jadwal_terdekat = jadwal_list
+                    .par_iter()
+                    .filter_map(|jadwal| jadwal.start_time.map(|st| (*jadwal, st)))
+                    .filter(|(_, start_time)| *start_time > waktu_sekarang)
+                    .min_by_key(|(_, start_time)| (*start_time - waktu_sekarang).num_seconds());
+                
+                jadwal_terdekat.map(|(jadwal, start_time)| {
+                    let selisih = start_time - waktu_sekarang;
+                    let selisih_menit = selisih.num_minutes();
+                    
+                    let status = if selisih_menit <= 30 {
+                        StatusJadwal::Mendesak {
+                            jadwal_id: jadwal.id,
+                            waktu_mulai: start_time,
+                            selisih_menit,
+                        }
+                    } else {
+                        StatusJadwal::Aman {
+                            jadwal_id: jadwal.id,
+                            waktu_mulai: start_time,
+                        }
+                    };
+                    
+                    (*studio_id, status)
+                })
+            })
+            .collect()
+    }
+
+    /// RAYON: Multi-level filtering dengan parallel execution
+    pub fn filter_kompleks(jadwal_slice: &[Showtime], kriteria: &FilterKriteria) -> Vec<Showtime> {
+        let waktu_sekarang = Local::now();
+        
+        jadwal_slice
+            .par_iter()
+            .filter(|jadwal| {
+                if let Some(studio_id) = kriteria.studio_id {
+                    if jadwal.studio_id != Some(studio_id) {
+                        return false;
+                    }
+                }
+
+                if let Some(movie_id) = kriteria.movie_id {
+                    if jadwal.movie_id != Some(movie_id) {
+                        return false;
+                    }
+                }
+
+                if let Some(min_harga) = kriteria.min_harga {
+                    if let Some(price) = jadwal.price {
+                        if price < min_harga {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+
+                if let Some(max_harga) = kriteria.max_harga {
+                    if let Some(price) = jadwal.price {
+                        if price > max_harga {
+                            return false;
+                        }
+                    }
+                }
+
+                if kriteria.hari_ini_saja {
+                    if let Some(start_time) = jadwal.start_time {
+                        if start_time.date_naive() != waktu_sekarang.date_naive() {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+
+                if kriteria.hanya_mendesak {
+                    if let Some(start_time) = jadwal.start_time {
+                        let selisih = (start_time - waktu_sekarang).num_minutes();
+                        if selisih > 30 || selisih < 0 {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+
+                true
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// RAYON: Agregasi statistik dengan parallel reduce
+    pub fn hitung_statistik(jadwal_slice: &[Showtime]) -> JadwalStatistik {
+        let waktu_sekarang = Local::now();
+        let hari_ini = waktu_sekarang.date_naive();
+        let minggu_ini_start = waktu_sekarang.date_naive() - chrono::Duration::days(7);
+
+        let (
+            total_jadwal,
+            jadwal_hari_ini,
+            jadwal_minggu_ini,
+            jadwal_mendesak,
+            total_harga,
+            count_harga,
+        ) = jadwal_slice
+            .par_iter()
+            .fold(
+                || (0usize, 0usize, 0usize, 0usize, Decimal::ZERO, 0usize),
+                |(total, hari_ini_count, minggu_ini_count, mendesak, mut harga_sum, harga_count), jadwal| {
+                    let new_total = total + 1;
+                    let mut new_hari_ini = hari_ini_count;
+                    let mut new_minggu_ini = minggu_ini_count;
+                    let mut new_mendesak = mendesak;
+                    let mut new_harga_count = harga_count;
+
+                    if let Some(start_time) = jadwal.start_time {
+                        if start_time.date_naive() == hari_ini {
+                            new_hari_ini += 1;
+                        }
+                        if start_time.date_naive() >= minggu_ini_start {
+                            new_minggu_ini += 1;
+                        }
+
+                        let selisih = (start_time - waktu_sekarang).num_minutes();
+                        if selisih > 0 && selisih <= 30 {
+                            new_mendesak += 1;
+                        }
+                    }
+
+                    if let Some(price) = jadwal.price {
+                        harga_sum += price;
+                        new_harga_count += 1;
+                    }
+
+                    (new_total, new_hari_ini, new_minggu_ini, new_mendesak, harga_sum, new_harga_count)
+                },
+            )
+            .reduce(
+                || (0, 0, 0, 0, Decimal::ZERO, 0),
+                |(t1, h1, m1, md1, hs1, hc1), (t2, h2, m2, md2, hs2, hc2)| {
+                    (t1 + t2, h1 + h2, m1 + m2, md1 + md2, hs1 + hs2, hc1 + hc2)
+                },
+            );
+
+        let harga_tertinggi = jadwal_slice
+            .par_iter()
+            .filter_map(|j| j.price)
+            .max();
+
+        let harga_terendah = jadwal_slice
+            .par_iter()
+            .filter_map(|j| j.price)
+            .min();
+
+        let studio_terpopuler = Self::studio_terpopuler_parallel(jadwal_slice);
+        let movie_terpopuler = Self::movie_terpopuler_parallel(jadwal_slice);
+
+        let harga_rata_rata = if count_harga > 0 {
+            (total_harga / Decimal::from(count_harga)).to_f64().unwrap_or(0.0)
+        } else {
+            0.0
+        };
+
+        JadwalStatistik {
+            total_jadwal,
+            jadwal_hari_ini,
+            jadwal_minggu_ini,
+            jadwal_mendesak,
+            harga_rata_rata,
+            harga_tertinggi,
+            harga_terendah,
+            studio_terpopuler,
+            movie_terpopuler,
+        }
+    }
+
+    /// RAYON: Cari studio terpopuler dengan parallel grouping
+    fn studio_terpopuler_parallel(jadwal_slice: &[Showtime]) -> Option<i64> {
+        let studio_counts: HashMap<i64, usize> = jadwal_slice
+            .par_iter()
+            .filter_map(|j| j.studio_id)
+            .fold(
+                HashMap::new,
+                |mut map, studio_id| {
+                    *map.entry(studio_id).or_insert(0) += 1;
+                    map
+                },
+            )
+            .reduce(
+                HashMap::new,
+                |mut map1, map2| {
+                    for (k, v) in map2 {
+                        *map1.entry(k).or_insert(0) += v;
+                    }
+                    map1
+                },
+            );
+
+        studio_counts
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(studio_id, _)| studio_id)
+    }
+
+    /// RAYON: Cari movie terpopuler dengan parallel grouping
+    fn movie_terpopuler_parallel(jadwal_slice: &[Showtime]) -> Option<i64> {
+        let movie_counts: HashMap<i64, usize> = jadwal_slice
+            .par_iter()
+            .filter_map(|j| j.movie_id)
+            .fold(
+                HashMap::new,
+                |mut map, movie_id| {
+                    *map.entry(movie_id).or_insert(0) += 1;
+                    map
+                },
+            )
+            .reduce(
+                HashMap::new,
+                |mut map1, map2| {
+                    for (k, v) in map2 {
+                        *map1.entry(k).or_insert(0) += v;
+                    }
+                    map1
+                },
+            );
+
+        movie_counts
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .map(|(movie_id, _)| movie_id)
+    }
+
+    /// RAYON: Filter by studio
+    pub fn filter_by_studio(jadwal_slice: &[Showtime], studio_id: i64) -> Vec<&Showtime> {
+        jadwal_slice
+            .par_iter()
+            .filter(|jadwal| jadwal.studio_id == Some(studio_id))
+            .collect()
+    }
+
+    /// RAYON: Filter by movie
+    pub fn filter_by_movie(jadwal_slice: &[Showtime], movie_id: i64) -> Vec<&Showtime> {
+        jadwal_slice
+            .par_iter()
+            .filter(|jadwal| jadwal.movie_id == Some(movie_id))
+            .collect()
+    }
+
+    pub fn count_jadwal(jadwal_slice: &[Showtime]) -> usize {
+        jadwal_slice.len()
+    }
+
+    /// RAYON: Cari jadwal dengan harga tertinggi
+    pub fn jadwal_harga_tertinggi(jadwal_slice: &[Showtime]) -> Option<&Showtime> {
+        jadwal_slice
+            .par_iter()
+            .filter(|jadwal| jadwal.price.is_some())
+            .max_by_key(|jadwal| jadwal.price.unwrap())
+    }
+
+    // ========================================================================
+    // WORKFLOW ORCHESTRATION
+    // ========================================================================
+
+    pub async fn execute_workflow(&self) -> Result<HasilAnalisa, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let jadwal_slice = jadwal_vec.as_slice();
+        let hasil = Self::cari_jadwal_terdekat(jadwal_slice);
+
+        Ok(hasil)
+    }
+
+    pub async fn execute_workflow_by_studio(&self, studio_id: i64) -> Result<HasilAnalisa, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let filtered = Self::filter_by_studio(jadwal_vec.as_slice(), studio_id);
+        let owned_jadwal: Vec<Showtime> = filtered.into_iter().cloned().collect();
+        let hasil = Self::cari_jadwal_terdekat(owned_jadwal.as_slice());
+
+        Ok(hasil)
+    }
+
+    pub async fn execute_workflow_by_movie(&self, movie_id: i64) -> Result<HasilAnalisa, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let filtered = Self::filter_by_movie(jadwal_vec.as_slice(), movie_id);
+        let owned_jadwal: Vec<Showtime> = filtered.into_iter().cloned().collect();
+        let hasil = Self::cari_jadwal_terdekat(owned_jadwal.as_slice());
+
+        Ok(hasil)
+    }
+
+    pub async fn execute_workflow_kompleks(&self, kriteria: FilterKriteria) -> Result<HasilAnalisa, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let filtered = Self::filter_kompleks(jadwal_vec.as_slice(), &kriteria);
+        let hasil = Self::cari_jadwal_terdekat(filtered.as_slice());
+
+        Ok(hasil)
+    }
+
+    pub async fn execute_workflow_jadwal_film_semua_bioskop(
+        &self,
+        movie_id: i64,
+    ) -> Result<Vec<(i64, StatusJadwal)>, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let hasil = Self::filter_jadwal_terdekat_film_semua_bioskop(jadwal_vec.as_slice(), movie_id);
+
+        Ok(hasil)
+    }
+
+    pub async fn execute_workflow_jadwal_semua_film(&self) -> Result<Vec<(i64, StatusJadwal)>, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let hasil = Self::filter_jadwal_terdekat_per_film(jadwal_vec.as_slice());
+
+        Ok(hasil)
+    }
+
+    pub async fn execute_workflow_batch(&self, chunk_size: usize) -> Result<Vec<HasilAnalisa>, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let hasil_batch = jadwal_vec
+            .as_slice()
+            .par_chunks(chunk_size)
+            .map(|chunk| Self::cari_jadwal_terdekat(chunk))
+            .collect();
+
+        Ok(hasil_batch)
+    }
+
+    pub async fn execute_workflow_statistik(&self) -> Result<JadwalStatistik, String> {
+        let jadwal_vec = self
+            .fetch_jadwal_dari_db()
+            .await
+            .map_err(|e| format!("Database error: {}", e))?;
+
+        let statistik = Self::hitung_statistik(jadwal_vec.as_slice());
+
+        Ok(statistik)
+    }
+}
+
 ```
 
 **Explanation:**
@@ -1180,41 +1593,65 @@ backend/
 **File:** `backend/src/middleware/auth.rs`
 
 ```rust
-1   use crate::models::user::Claims;
-2   use axum::{
-3       extract::Request,
-4       http::{header, StatusCode},
-5       middleware::Next,
-6       response::Response,
-7   };
-8   
-9   pub async fn auth_middleware(mut req: Request, next: Next) -> Result<Response, StatusCode> {
-10      let auth_header = req
-11          .headers()
-12          .get(header::AUTHORIZATION)
-13          .and_then(|h| h.to_str().ok());
-14  
-15      let token = match auth_header {
-16          Some(header) if header.starts_with("Bearer ") => {
-17              header.trim_start_matches("Bearer ")
-18          }
-19          _ => return Err(StatusCode::UNAUTHORIZED),
-20      };
-21  
-22      let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret_key".to_string());
-23  
-24      match jsonwebtoken::decode::<Claims>(
-25          token,
-26          &jsonwebtoken::DecodingKey::from_secret(secret.as_bytes()),
-27          &jsonwebtoken::Validation::default(),
-28      ) {
-29          Ok(token_data) => {
-30              req.extensions_mut().insert(token_data.claims.user_id);
-31              Ok(next.run(req).await)
-32          }
-33          Err(_) => Err(StatusCode::UNAUTHORIZED),
-34      }
-35  }
+use axum::extract::FromRequestParts;
+use axum::http::StatusCode;
+use axum::http::request::Parts;
+use jsonwebtoken::{DecodingKey, Validation, decode};
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+struct Claims {
+    pub sub: String,
+    pub exp: usize,
+}
+
+pub struct AuthUser(pub i64);
+
+impl<S> FromRequestParts<S> for AuthUser
+where
+    S: Send + Sync,
+{
+    type Rejection = (StatusCode, &'static str);
+
+    fn from_request_parts(
+        parts: &mut Parts,
+        _state: &S,
+    ) -> impl std::future::Future<Output = Result<Self, Self::Rejection>> + Send {
+        async move {
+            // Get Authorization header
+            let auth_header = parts
+                .headers
+                .get("authorization")
+                .and_then(|v| v.to_str().ok())
+                .ok_or((StatusCode::UNAUTHORIZED, "Missing Authorization header"))?;
+
+            if !auth_header.starts_with("Bearer ") {
+                return Err((StatusCode::UNAUTHORIZED, "Invalid Authorization header"));
+            }
+
+            let token = &auth_header[7..];
+
+            let secret =
+                std::env::var("JWT_SECRET").unwrap_or_else(|_| "tioskop_dev_secret".to_string());
+
+            let token_data = decode::<Claims>(
+                token,
+                &DecodingKey::from_secret(secret.as_bytes()),
+                &Validation::default(),
+            )
+            .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token"))?;
+
+            let user_id = token_data
+                .claims
+                .sub
+                .parse::<i64>()
+                .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid token sub"))?;
+
+            Ok(AuthUser(user_id))
+        }
+    }
+}
+
 ```
 
 **Explanation:**
@@ -1269,106 +1706,223 @@ backend/
 **File:** `backend/src/handlers/auth_handler.rs`
 
 ```rust
-1   use crate::{
-2       entities::users::{self, Entity as UsersEntity},
-3       models::{
-4           auth::{LoginRequest, LoginResponse, RegisterRequest},
-5           response::ApiResponse,
-6           user::{Claims, UserInfo},
-7       },
-8   };
-9   use axum::{extract::State, http::StatusCode, Json};
-10  use bcrypt::{hash, verify, DEFAULT_COST};
-11  use chrono::Utc;
-12  use jsonwebtoken::{encode, Header};
-13  use sea_orm::{ActiveModelTrait, ColumnTrait, DatabaseConnection, EntityTrait, QueryFilter, Set};
-14  
-15  pub async fn register(
-16      State(db): State<DatabaseConnection>,
-17      Json(payload): Json<RegisterRequest>,
-18  ) -> Result<Json<ApiResponse<UserInfo>>, StatusCode> {
-19      let existing_user = UsersEntity::find()
-20          .filter(users::Column::Email.eq(&payload.email))
-21          .one(&db)
-22          .await
-23          .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-24  
-25      if existing_user.is_some() {
-26          return Err(StatusCode::CONFLICT);
-27      }
-28  
-29      let hashed_password = hash(&payload.password, DEFAULT_COST)
-30          .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-31  
-32      let new_user = users::ActiveModel {
-33          name: Set(payload.name.clone()),
-34          email: Set(payload.email.clone()),
-35          password: Set(hashed_password),
-36          role: Set("customer".to_string()),
-37          ..Default::default()
-38      };
-39  
-40      let inserted_user = new_user
-41          .insert(&db)
-42          .await
-43          .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-44  
-45      let user_info = UserInfo {
-46          id: inserted_user.id,
-47          name: inserted_user.name,
-48          email: inserted_user.email,
-49          role: inserted_user.role,
-50          cinema_id: None,
-51      };
-52  
-53      Ok(Json(ApiResponse::success(user_info)))
-54  }
-55  
-56  pub async fn login(
-57      State(db): State<DatabaseConnection>,
-58      Json(payload): Json<LoginRequest>,
-59  ) -> Result<Json<ApiResponse<LoginResponse>>, StatusCode> {
-60      let user = UsersEntity::find()
-61          .filter(users::Column::Email.eq(&payload.email))
-62          .one(&db)
-63          .await
-64          .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-65          .ok_or(StatusCode::UNAUTHORIZED)?;
-66  
-67      let is_valid = verify(&payload.password, &user.password)
-68          .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-69  
-70      if !is_valid {
-71          return Err(StatusCode::UNAUTHORIZED);
-72      }
-73  
-74      let claims = Claims {
-75          user_id: user.id,
-76          email: user.email.clone(),
-77          role: user.role.clone(),
-78          exp: (Utc::now() + chrono::Duration::hours(24)).timestamp() as usize,
-79      };
-80  
-81      let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "secret_key".to_string());
-82      let token = encode(
-83          &Header::default(),
-84          &claims,
-85          &jsonwebtoken::EncodingKey::from_secret(secret.as_bytes()),
-86      )
-87      .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-88  
-89      let user_info = UserInfo {
-90          id: user.id,
-91          name: user.name,
-92          email: user.email,
-93          role: user.role,
-94          cinema_id: None,
-95      };
-96  
-97      let response = LoginResponse { token, user: user_info };
-98  
-99      Ok(Json(ApiResponse::success(response)))
-100 }
+use crate::middleware::auth::AuthUser;
+use crate::models::*;
+use crate::entities::UsersEntity;
+use axum::{Json, extract::State};
+use jsonwebtoken::{EncodingKey, Header};
+use serde::Serialize;
+use sea_orm::{ActiveModelTrait, DatabaseConnection, EntityTrait, Set, ColumnTrait, QueryFilter, PaginatorTrait};
+
+#[derive(Serialize)]
+struct Claims {
+    sub: String,
+    exp: usize,
+}
+
+// Simple password hashing
+fn hash_password(password: &str) -> String {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+
+    let mut hasher = DefaultHasher::new();
+    password.hash(&mut hasher);
+    format!("{:x}", hasher.finish())
+}
+
+// Simple token generation
+fn generate_token(user_id: i64) -> Result<String, String> {
+    // JWT with simple HMAC secret from env (fallback for dev)
+    let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "tioskop_dev_secret".to_string());
+
+    // token expiry: 24 hours from now
+    let exp = (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
+
+    let claims = Claims {
+        sub: user_id.to_string(),
+        exp,
+    };
+
+    jsonwebtoken::encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .map_err(|e| format!("JWT encode error: {}", e))
+}
+
+// Register new user fn
+pub async fn register(
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<RegisterRequest>,
+) -> Json<ApiResponse<UserInfo>> {
+    use crate::entities::users::Column;
+
+    if !payload.email.contains('@') {
+        return Json(ApiResponse::error("Email tidak valid"));
+    }
+
+    if payload.password.len() < 6 {
+        return Json(ApiResponse::error("Password minimal 6 karakter"));
+    }
+
+    let hashed_password = hash_password(&payload.password);
+    let role = payload
+        .role
+        .unwrap_or_else(|| "customer".to_string())
+        .to_uppercase();
+
+    if role != "ADMIN" && role != "CUSTOMER" {
+        return Json(ApiResponse::error("Role harus 'admin' atau 'customer'"));
+    }
+
+    // Check if email exists
+    let exists = UsersEntity::find()
+        .filter(Column::Email.eq(&payload.email))
+        .count(&db)
+        .await
+        .unwrap_or(0);
+
+    if exists > 0 {
+        return Json(ApiResponse::error("Email sudah terdaftar"));
+    }
+
+    // Create new user
+    use crate::entities::users::ActiveModel;
+    let new_user = ActiveModel {
+        name: Set(payload.name.clone()),
+        email: Set(payload.email.clone()),
+        password: Set(hashed_password),
+        role: Set(role.clone()),
+        ..Default::default()
+    };
+
+    match new_user.insert(&db).await {
+        Ok(user) => {
+            let user_info = UserInfo {
+                id: user.id,
+                name: payload.name,
+                email: payload.email,
+                role,
+                cinema_id: None,
+            };
+
+            Json(ApiResponse::success("Registrasi berhasil", user_info))
+        }
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
+    }
+}
+
+// Login user
+pub async fn login(
+    State(db): State<DatabaseConnection>,
+    Json(payload): Json<LoginRequest>,
+) -> Json<ApiResponse<LoginResponse>> {
+    use crate::entities::users::Column;
+    use sea_orm::QuerySelect;
+
+    let hashed_password = hash_password(&payload.password);
+
+    // Select only needed columns, skip timestamp columns
+    let user_result = UsersEntity::find()
+        .select_only()
+        .column(Column::Id)
+        .column(Column::Name)
+        .column(Column::Email)
+        .column(Column::Role)
+        .filter(Column::Email.eq(&payload.email))
+        .filter(Column::Password.eq(&hashed_password))
+        .into_tuple::<(i64, String, String, String)>()
+        .one(&db)
+        .await;
+
+    match user_result {
+        Ok(Some((id, name, email, role))) => {
+            // TODO: Implement cinema lookup when cinemas entity is created
+            let cinema_id = None;
+
+            let user_info = UserInfo {
+                id,
+                name,
+                email,
+                role,
+                cinema_id,
+            };
+
+            let token = match generate_token(id) {
+                Ok(t) => t,
+                Err(e) => {
+                    return Json(ApiResponse::error(&format!(
+                        "Token generation error: {}",
+                        e
+                    )));
+                }
+            };
+
+            let login_response = LoginResponse {
+                user: user_info,
+                token,
+            };
+
+            Json(ApiResponse::success("Login berhasil", login_response))
+        }
+        Ok(None) => Json(ApiResponse::error("Email atau password salah")),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
+    }
+}
+
+// Get user profile
+pub async fn get_profile(
+    State(db): State<DatabaseConnection>,
+    AuthUser(user_id): AuthUser,
+) -> Json<ApiResponse<UserInfo>> {
+    use crate::entities::users::Column;
+    use sea_orm::QuerySelect;
+
+    // Select only needed columns, skip timestamp columns
+    let user_result = UsersEntity::find_by_id(user_id)
+        .select_only()
+        .column(Column::Id)
+        .column(Column::Name)
+        .column(Column::Email)
+        .column(Column::Role)
+        .into_tuple::<(i64, String, String, String)>()
+        .one(&db)
+        .await;
+
+    match user_result {
+        Ok(Some((id, name, email, role))) => {
+            // TODO: Implement cinema lookup when cinemas entity is created
+            let cinema_id = None;
+
+            let user_info = UserInfo {
+                id,
+                name,
+                email,
+                role,
+                cinema_id,
+            };
+
+            Json(ApiResponse::success(
+                "Berhasil mengambil profile",
+                user_info,
+            ))
+        }
+        Ok(None) => Json(ApiResponse::error("User tidak ditemukan")),
+        Err(e) => Json(ApiResponse::error(&format!("Database error: {}", e))),
+    }
+}
+
+// Get cinemas by admin
+pub async fn get_admin_cinemas(
+    State(db): State<DatabaseConnection>,
+    user_id: i64,
+) -> Json<ApiResponse<Vec<crate::models::studio::Cinema>>> {
+    // TODO: Implement when Cinemas entity is created
+    // For now, return empty array
+    Json(ApiResponse::success("Berhasil mengambil cinemas", vec![]))
+}
+
 ```
 
 **Explanation:**
@@ -1462,22 +2016,28 @@ backend/
 **File:** `backend/src/routes/movie_routes.rs`
 
 ```rust
-1   use crate::handlers::movie_handler::{
-2       create_movie, delete_movie, get_all_movies, get_movie_by_id, search_movies, update_movie,
-3   };
-4   use axum::{
-5       routing::get,
-6       Router,
-7   };
-8   use sea_orm::DatabaseConnection;
-9   
-10  pub fn movie_routes(db: DatabaseConnection) -> Router {
-11      Router::new()
-12          .route("/", get(get_all_movies).post(create_movie))
-13          .route("/search", get(search_movies))
-14          .route("/:id", get(get_movie_by_id).patch(update_movie).delete(delete_movie))
-15          .with_state(db)
-16  }
+use crate::handlers::movie_handler::*;
+use crate::handlers::update_posters::*;
+use axum::{
+    Router,
+    routing::{delete, get, post, put},
+};
+use sea_orm::DatabaseConnection;
+
+pub fn movie_routes() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/movies/all", get(get_all))
+        .route("/api/movies", get(search).post(create))
+        .route("/api/movies/{id}", 
+            get(get_by_id)
+                .put(update)
+                .delete(delete_movie)  
+        )
+        .route("/api/movies/latest", get(get_latest))
+        .route("/api/movies/genre/{genre}", get(get_by_genre))
+        .route("/api/movies/rating/{rating}", get(get_by_rating))
+        .route("/api/movies/update-posters", post(update_movie_posters))
+}
 ```
 
 **Explanation:**
@@ -1528,18 +2088,26 @@ backend/
 **File:** `backend/src/routes/booking_routes.rs`
 
 ```rust
-1   use crate::handlers::booking_handler::{create_booking, get_bookings};
-2   use axum::{
-3       routing::get,
-4       Router,
-5   };
-6   use sea_orm::DatabaseConnection;
-7   
-8   pub fn booking_routes(db: DatabaseConnection) -> Router {
-9       Router::new()
-10          .route("/", get(get_bookings).post(create_booking))
-11          .with_state(db)
-12  }
+use crate::handlers::booking_handler::*;
+use axum::{
+    Router,
+    routing::{get, post, put},
+};
+use sea_orm::DatabaseConnection;
+
+pub fn booking_routes() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/bookings", get(get_all).post(create))
+        .route("/api/bookings/{id}", get(get_by_id))
+        .route("/api/bookings/user/{user_id}", get(get_by_user))
+        .route("/api/bookings/{id}/payment", put(update_payment))
+        .route("/api/bookings/{id}/cancel", put(cancel))
+        .route(
+            "/api/bookings/showtime/{showtime_id}/seats",
+            get(get_booked_seats),
+        )
+}
+
 ```
 
 **Explanation:**
@@ -1566,21 +2134,29 @@ backend/
 **File:** `backend/src/routes/showtime_routes.rs`
 
 ```rust
-1   use crate::handlers::showtime_handler::{
-2       create_showtime, get_all_showtimes, get_showtimes_by_movie_id,
-3   };
-4   use axum::{
-5       routing::get,
-6       Router,
-7   };
-8   use sea_orm::DatabaseConnection;
-9   
-10  pub fn showtime_routes(db: DatabaseConnection) -> Router {
-11      Router::new()
-12          .route("/", get(get_all_showtimes).post(create_showtime))
-13          .route("/movie/:movie_id", get(get_showtimes_by_movie_id))
-14          .with_state(db)
-15  }
+use crate::handlers::showtime_handler::*;
+use axum::{
+    Router,
+    routing::{delete, get, post, put},
+};
+use sea_orm::DatabaseConnection;
+
+pub fn showtime_routes() -> Router<DatabaseConnection> {
+    Router::new()
+        .route(
+            "/api/showtimes",
+            get(get_all_showtimes).post(create_showtime),
+        )
+        .route(
+            "/api/showtimes/movie/{movie_id}",
+            get(get_showtimes_by_movie),
+        )
+        .route(
+            "/api/showtimes/{id}",
+            put(update_showtime).delete(delete_showtime),
+        )
+}
+
 ```
 
 **Explanation:**
@@ -1609,15 +2185,28 @@ backend/
 **File:** `backend/src/routes/seat_routes.rs`
 
 ```rust
-1   use crate::handlers::seat_handler::get_seats_by_showtime;
-2   use axum::{routing::get, Router};
-3   use sea_orm::DatabaseConnection;
-4   
-5   pub fn seat_routes(db: DatabaseConnection) -> Router {
-6       Router::new()
-7           .route("/showtime/:showtime_id", get(get_seats_by_showtime))
-8           .with_state(db)
-9   }
+use crate::handlers::seat_handler::*;
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use sea_orm::DatabaseConnection;
+
+pub fn seat_routes() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/seats", get(get_all_seats))
+        .route("/api/seats/generate", post(generate_seats_for_studio))
+        .route("/api/seats/studio/{studio_id}", get(get_seats_by_studio))
+        .route(
+            "/api/seats/showtime/{showtime_id}",
+            get(get_seats_by_showtime),
+        )
+        .route(
+            "/api/seats/showtime/{showtime_id}/available",
+            get(get_available_seats_by_showtime),
+        )
+}
+
 ```
 
 **Explanation:**
@@ -1641,15 +2230,28 @@ backend/
 **File:** `backend/src/routes/studio_routes.rs`
 
 ```rust
-1   use crate::handlers::studio_handler::get_studios_by_cinema_id;
-2   use axum::{routing::get, Router};
-3   use sea_orm::DatabaseConnection;
-4   
-5   pub fn studio_routes(db: DatabaseConnection) -> Router {
-6       Router::new()
-7           .route("/cinema/:cinema_id", get(get_studios_by_cinema_id))
-8           .with_state(db)
-9   }
+use crate::handlers::studio_handler::*;
+use axum::{
+    Router,
+    routing::{delete, get, post, put},
+};
+use sea_orm::DatabaseConnection;
+
+pub fn studio_routes() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/studios", get(get_all_studios).post(create_studio))
+        .route(
+            "/api/studios/{id}",
+            get(get_studio_by_id)
+                .put(update_studio)
+                .delete(delete_studio),
+        )
+        .route(
+            "/api/studios/cinema/{cinema_id}",
+            get(get_studios_by_cinema),
+        )
+}
+
 ```
 
 **Explanation:**
@@ -1677,26 +2279,20 @@ Cinema (XXI BOS Mall)
 **File:** `backend/src/routes/auth_routes.rs`
 
 ```rust
-1   use crate::handlers::auth_handler::{login_handler, logout_handler, register_handler, user_info_handler};
-2   use crate::middleware::auth::auth_middleware;
-3   use axum::{
-4       middleware as axum_middleware,
-5       routing::{get, post},
-6       Router,
-7   };
-8   use sea_orm::DatabaseConnection;
-9   
-10  pub fn auth_routes(db: DatabaseConnection) -> Router {
-11      Router::new()
-12          .route("/register", post(register_handler))
-13          .route("/login", post(login_handler))
-14          .route("/logout", post(logout_handler))
-15          .route(
-16              "/user",
-17              get(user_info_handler).layer(axum_middleware::from_fn(auth_middleware)),
-18          )
-19          .with_state(db)
-20  }
+use crate::handlers::auth_handler::*;
+use axum::{
+    Router,
+    routing::{get, post},
+};
+use sea_orm::DatabaseConnection;
+
+pub fn auth_routes() -> Router<DatabaseConnection> {
+    Router::new()
+        .route("/api/auth/register", post(register))
+        .route("/api/auth/login", post(login))
+        .route("/api/auth/profile", get(get_profile))
+}
+
 ```
 
 **Explanation:**
@@ -1752,40 +2348,328 @@ Request → auth_middleware → user_info_handler → Response
 **File:** `backend/src/routes/workflow_routes.rs`
 
 ```rust
-1   use crate::services::workflow_service::JadwalWorkflowService;
-2   use axum::{
-3       extract::State, http::StatusCode, response::IntoResponse, Json, Router,
-4   };
-5   use sea_orm::DatabaseConnection;
-6   use serde_json::json;
-7   use std::sync::Arc;
-8   
-9   #[derive(Clone)]
-10  pub struct AppState {
-11      pub db: DatabaseConnection,
-12      pub workflow_service: Arc<JadwalWorkflowService>,
-13  }
-14  
-15  pub fn workflow_routes(state: AppState) -> Router {
-16      Router::new()
-17          .route("/jadwal/terdekat", axum::routing::get(get_jadwal_terdekat))
-18          .with_state(state)
-19  }
-20  
-21  async fn get_jadwal_terdekat(
-22      State(state): State<AppState>,
-23  ) -> Result<impl IntoResponse, StatusCode> {
-24      match state.workflow_service.execute_workflow().await {
-25          Ok(hasil) => Ok(Json(json!({
-26              "success": true,
-27              "data": hasil,
-28          }))),
-29          Err(e) => {
-30              eprintln!("Workflow error: {}", e);
-31              Err(StatusCode::INTERNAL_SERVER_ERROR)
-32          }
-33      }
-34  }
+use chrono::{DateTime, Local};
+use rust_decimal::Decimal;
+use serde::Serialize;
+use crate::services::workflow_service::{HasilAnalisa, JadwalWorkflowService, StatusJadwal};
+use axum::{
+    Json, Router, extract::Path, extract::State, http::StatusCode, response::IntoResponse,
+    routing::get,
+};
+use std::sync::Arc;
+
+#[derive(Clone, Serialize)]
+#[serde(tag = "type", content = "data")]
+pub enum StatusJadwalResponse {
+    Mendesak {
+        jadwal_id: i64,
+        waktu_mulai: DateTime<Local>,
+        selisih_menit: i64,
+    },
+    Aman {
+        jadwal_id: i64,
+        waktu_mulai: DateTime<Local>,
+    },
+    Selesai {
+        jadwal_id: i64,
+        waktu_selesai: DateTime<Local>,
+    },
+}
+
+#[derive(Serialize)]
+#[serde(tag = "status", content = "result")]
+pub enum ApiResponse {
+    Success(StatusJadwalResponse),
+    NoSchedule,
+    Error { message: String },
+}
+
+impl From<StatusJadwal> for StatusJadwalResponse {
+    fn from(status: StatusJadwal) -> Self {
+        match status {
+            StatusJadwal::Mendesak {
+                jadwal_id,
+                waktu_mulai,
+                selisih_menit,
+            } => StatusJadwalResponse::Mendesak {
+                jadwal_id,
+                waktu_mulai,
+                selisih_menit,
+            },
+            StatusJadwal::Aman {
+                jadwal_id,
+                waktu_mulai,
+            } => StatusJadwalResponse::Aman {
+                jadwal_id,
+                waktu_mulai,
+            },
+            StatusJadwal::Selesai {
+                jadwal_id,
+                waktu_selesai,
+            } => StatusJadwalResponse::Selesai {
+                jadwal_id,
+                waktu_selesai,
+            },
+        }
+    }
+}
+
+impl From<HasilAnalisa> for ApiResponse {
+    fn from(hasil: HasilAnalisa) -> Self {
+        match hasil {
+            HasilAnalisa::JadwalTerdekat(status) => ApiResponse::Success(status.into()),
+            HasilAnalisa::TidakAdaJadwal => ApiResponse::NoSchedule,
+            HasilAnalisa::Error(msg) => ApiResponse::Error { message: msg },
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct AppState {
+    pub workflow_service: Arc<JadwalWorkflowService>,
+}
+
+pub async fn get_jadwal_terdekat(State(state): State<AppState>) -> impl IntoResponse {
+    match state.workflow_service.execute_workflow().await {
+        Ok(hasil) => {
+            let response: ApiResponse = hasil.into();
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let response = ApiResponse::Error { message: e };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(response))
+        }
+    }
+}
+
+pub async fn get_jadwal_by_studio(
+    State(state): State<AppState>,
+    Path(studio_id): Path<i64>,
+) -> impl IntoResponse {
+    match state
+        .workflow_service
+        .execute_workflow_by_studio(studio_id)
+        .await
+    {
+        Ok(hasil) => {
+            let response: ApiResponse = hasil.into();
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let response = ApiResponse::Error { message: e };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(response))
+        }
+    }
+}
+
+pub async fn get_jadwal_by_movie(
+    State(state): State<AppState>,
+    Path(movie_id): Path<i64>,
+) -> impl IntoResponse {
+    match state
+        .workflow_service
+        .execute_workflow_by_movie(movie_id)
+        .await
+    {
+        Ok(hasil) => {
+            let response: ApiResponse = hasil.into();
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let response = ApiResponse::Error { message: e };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(response))
+        }
+    }
+}
+
+pub async fn get_jadwal_stats(State(state): State<AppState>) -> impl IntoResponse {
+    match state.workflow_service.execute_workflow_statistik().await {
+        Ok(statistik) => {
+            let response = serde_json::json!({
+                "success": true,
+                "statistik": {
+                    "total_jadwal": statistik.total_jadwal,
+                    "jadwal_hari_ini": statistik.jadwal_hari_ini,
+                    "jadwal_minggu_ini": statistik.jadwal_minggu_ini,
+                    "jadwal_mendesak": statistik.jadwal_mendesak,
+                    "harga_rata_rata": statistik.harga_rata_rata,
+                    "harga_tertinggi": statistik.harga_tertinggi,
+                    "harga_terendah": statistik.harga_terendah,
+                    "studio_terpopuler": statistik.studio_terpopuler,
+                    "movie_terpopuler": statistik.movie_terpopuler,
+                }
+            });
+
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let error = serde_json::json!({
+                "success": false,
+                "error": e
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
+        }
+    }
+}
+
+pub async fn get_jadwal_batch(
+    State(state): State<AppState>,
+    axum::extract::Query(params): axum::extract::Query<std::collections::HashMap<String, String>>,
+) -> impl IntoResponse {
+    let chunk_size = params
+        .get("chunk_size")
+        .and_then(|s| s.parse::<usize>().ok())
+        .unwrap_or(100);
+
+    match state.workflow_service.execute_workflow_batch(chunk_size).await {
+        Ok(hasil_batch) => {
+            let results: Vec<_> = hasil_batch
+                .into_iter()
+                .map(|hasil| {
+                    serde_json::json!({
+                        "type": match hasil {
+                            HasilAnalisa::JadwalTerdekat(_) => "found",
+                            HasilAnalisa::TidakAdaJadwal => "not_found",
+                            HasilAnalisa::Error(_) => "error",
+                        }
+                    })
+                })
+                .collect();
+
+            let response = serde_json::json!({
+                "success": true,
+                "chunk_size": chunk_size,
+                "total_chunks": results.len(),
+                "results": results,
+            });
+
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let error = serde_json::json!({
+                "success": false,
+                "error": e
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
+        }
+    }
+}
+
+pub async fn post_jadwal_filter_kompleks(
+    State(state): State<AppState>,
+    Json(body): Json<serde_json::Value>,
+) -> impl IntoResponse {
+    use crate::services::workflow_service::FilterKriteria;
+
+    let kriteria = FilterKriteria {
+        studio_id: body.get("studio_id").and_then(|v| v.as_i64()),
+        movie_id: body.get("movie_id").and_then(|v| v.as_i64()),
+        min_harga: body.get("min_harga").and_then(|v| v.as_i64()).map(|i| Decimal::from(i)),
+        max_harga: body.get("max_harga").and_then(|v| v.as_i64()).map(|i| Decimal::from(i)),
+        hari_ini_saja: body.get("hari_ini_saja").and_then(|v| v.as_bool()).unwrap_or(false),
+        hanya_mendesak: body.get("hanya_mendesak").and_then(|v| v.as_bool()).unwrap_or(false),
+    };
+
+    match state.workflow_service.execute_workflow_kompleks(kriteria).await {
+        Ok(hasil) => {
+            let response: ApiResponse = hasil.into();
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let response = ApiResponse::Error { message: e };
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(response))
+        }
+    }
+}
+
+pub async fn get_jadwal_film_semua_bioskop(
+    State(state): State<AppState>,
+    Path(movie_id): Path<i64>,
+) -> impl IntoResponse {
+    match state
+        .workflow_service
+        .execute_workflow_jadwal_film_semua_bioskop(movie_id)
+        .await
+    {
+        Ok(hasil_list) => {
+            let results: Vec<_> = hasil_list
+                .into_iter()
+                .map(|(studio_id, status)| {
+                    let response: StatusJadwalResponse = status.into();
+                    serde_json::json!({
+                        "studio_id": studio_id,
+                        "jadwal": response
+                    })
+                })
+                .collect();
+
+            let response = serde_json::json!({
+                "success": true,
+                "movie_id": movie_id,
+                "total_bioskop": results.len(),
+                "jadwal_per_bioskop": results
+            });
+
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let error = serde_json::json!({
+                "success": false,
+                "error": e
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
+        }
+    }
+}
+
+pub async fn get_jadwal_semua_film(State(state): State<AppState>) -> impl IntoResponse {
+    match state
+        .workflow_service
+        .execute_workflow_jadwal_semua_film()
+        .await
+    {
+        Ok(hasil_list) => {
+            let results: Vec<_> = hasil_list
+                .into_iter()
+                .map(|(movie_id, status)| {
+                    let response: StatusJadwalResponse = status.into();
+                    serde_json::json!({
+                        "movie_id": movie_id,
+                        "jadwal": response
+                    })
+                })
+                .collect();
+
+            let response = serde_json::json!({
+                "success": true,
+                "total_film": results.len(),
+                "jadwal_per_film": results
+            });
+
+            (StatusCode::OK, Json(response))
+        }
+        Err(e) => {
+            let error = serde_json::json!({
+                "success": false,
+                "error": e
+            });
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(error))
+        }
+    }
+}
+
+pub fn workflow_routes() -> Router<AppState> {
+    Router::new()
+        .route("/jadwal/terdekat", get(get_jadwal_terdekat))
+        .route("/jadwal/studio/{studio_id}", get(get_jadwal_by_studio))
+        .route("/jadwal/movie/{movie_id}", get(get_jadwal_by_movie))
+        .route("/jadwal/stats", get(get_jadwal_stats))
+        .route("/jadwal/batch", get(get_jadwal_batch))
+        .route("/jadwal/filter-kompleks", axum::routing::post(post_jadwal_filter_kompleks))
+        .route("/jadwal/film/{movie_id}/semua-bioskop", get(get_jadwal_film_semua_bioskop))
+        .route("/jadwal/semua-film", get(get_jadwal_semua_film))
+}
+
 ```
 
 **Explanation:**
@@ -1840,19 +2724,6 @@ Request → auth_middleware → user_info_handler → Response
 3. **Async/Await** - Non-blocking concurrent I/O
 4. **Shared State with Arc** - Thread-safe reference counting
 5. **Immutable State** - `AppState` doesn't mutate, only borrowed
-
-**Arc Explanation:**
-```rust
-// Without Arc (tidak bisa shared across threads)
-let service = JadwalWorkflowService::new(db);
-
-// With Arc (thread-safe shared ownership)
-let service = Arc::new(JadwalWorkflowService::new(db));
-let service_clone1 = Arc::clone(&service); // Reference counting +1
-let service_clone2 = Arc::clone(&service); // Reference counting +1
-// All clones point to same data, deallocated when all refs dropped
-```
-
 ---
 
 ### **7. Request/Response Models**
