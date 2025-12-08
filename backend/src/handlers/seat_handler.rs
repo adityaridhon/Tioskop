@@ -37,8 +37,6 @@ pub async fn get_seats_by_studio(
         .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
-// Get seats by showtime
-// TODO: Complex JOIN query - consider using sea_query for advanced queries
 pub async fn get_seats_by_showtime(
     State(db): State<DatabaseConnection>,
     Path(showtime_id): Path<i64>,
@@ -157,7 +155,6 @@ pub async fn generate_seats_for_studio(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<GenerateSeatsRequest>,
 ) -> Json<ApiResponse<GenerateSeatsResponse>> {
-    // Check if studio exists
     let studio_exists = StudiosEntity::find_by_id(payload.studio_id)
         .one(&db)
         .await;

@@ -108,7 +108,6 @@ pub async fn get_by_rating(db: &DatabaseConnection, rating: &str) -> Result<Vec<
 }
 
 
-/// Create new movie - Functional approach
 pub async fn create(db: &DatabaseConnection, request: CreateMovieRequest) -> Result<Movie> {
     validate_title(&request.title)?;
     validate_duration(request.duration)?;

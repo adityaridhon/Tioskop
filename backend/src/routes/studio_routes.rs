@@ -1,7 +1,7 @@
 use crate::handlers::studio_handler::*;
 use axum::{
     Router,
-    routing::{delete, get, post, put},
+    routing::{get},
 };
 use sea_orm::DatabaseConnection;
 

@@ -36,7 +36,6 @@ pub async fn get_by_id(
     to_response(movie::get_by_id(&db, id).await)
 }
 
-/// Create movie
 pub async fn create(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateMovieRequest>,

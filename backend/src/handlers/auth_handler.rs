@@ -12,7 +12,6 @@ struct Claims {
     exp: usize,
 }
 
-// Simple password hashing
 fn hash_password(password: &str) -> String {
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
@@ -22,12 +21,8 @@ fn hash_password(password: &str) -> String {
     format!("{:x}", hasher.finish())
 }
 
-// Simple token generation
 fn generate_token(user_id: i64) -> Result<String, String> {
-    // JWT with simple HMAC secret from env (fallback for dev)
     let secret = std::env::var("JWT_SECRET").unwrap_or_else(|_| "tioskop_dev_secret".to_string());
-
-    // token expiry: 24 hours from now
     let exp = (chrono::Utc::now() + chrono::Duration::hours(24)).timestamp() as usize;
 
     let claims = Claims {
@@ -43,7 +38,6 @@ fn generate_token(user_id: i64) -> Result<String, String> {
     .map_err(|e| format!("JWT encode error: {}", e))
 }
 
-// Register new user fn
 pub async fn register(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<RegisterRequest>,
@@ -68,7 +62,6 @@ pub async fn register(
         return Json(ApiResponse::error("Role harus 'admin' atau 'customer'"));
     }
 
-    // Check if email exists
     let exists = UsersEntity::find()
         .filter(Column::Email.eq(&payload.email))
         .count(&db)
@@ -79,7 +72,6 @@ pub async fn register(
         return Json(ApiResponse::error("Email sudah terdaftar"));
     }
 
-    // Create new user
     use crate::entities::users::ActiveModel;
     let new_user = ActiveModel {
         name: Set(payload.name.clone()),
@@ -105,7 +97,6 @@ pub async fn register(
     }
 }
 
-// Login user
 pub async fn login(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<LoginRequest>,
@@ -115,7 +106,6 @@ pub async fn login(
 
     let hashed_password = hash_password(&payload.password);
 
-    // Select only needed columns, skip timestamp columns
     let user_result = UsersEntity::find()
         .select_only()
         .column(Column::Id)
@@ -130,7 +120,6 @@ pub async fn login(
 
     match user_result {
         Ok(Some((id, name, email, role))) => {
-            // TODO: Implement cinema lookup when cinemas entity is created
             let cinema_id = None;
 
             let user_info = UserInfo {
@@ -163,7 +152,6 @@ pub async fn login(
     }
 }
 
-// Get user profile
 pub async fn get_profile(
     State(db): State<DatabaseConnection>,
     AuthUser(user_id): AuthUser,
@@ -171,7 +159,6 @@ pub async fn get_profile(
     use crate::entities::users::Column;
     use sea_orm::QuerySelect;
 
-    // Select only needed columns, skip timestamp columns
     let user_result = UsersEntity::find_by_id(user_id)
         .select_only()
         .column(Column::Id)
@@ -184,7 +171,6 @@ pub async fn get_profile(
 
     match user_result {
         Ok(Some((id, name, email, role))) => {
-            // TODO: Implement cinema lookup when cinemas entity is created
             let cinema_id = None;
 
             let user_info = UserInfo {
@@ -205,12 +191,9 @@ pub async fn get_profile(
     }
 }
 
-// Get cinemas by admin
 pub async fn get_admin_cinemas(
-    State(db): State<DatabaseConnection>,
-    user_id: i64,
+    State(_db): State<DatabaseConnection>,
+    _user_id: i64,
 ) -> Json<ApiResponse<Vec<crate::models::studio::Cinema>>> {
-    // TODO: Implement when Cinemas entity is created
-    // For now, return empty array
     Json(ApiResponse::success("Berhasil mengambil cinemas", vec![]))
 }

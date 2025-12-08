@@ -61,7 +61,6 @@ pub async fn get_studios_by_cinema(
         .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
 }
 
-// Create studio
 pub async fn create_studio(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<CreateStudioRequest>,

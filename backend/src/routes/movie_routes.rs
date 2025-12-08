@@ -2,7 +2,7 @@ use crate::handlers::movie_handler::*;
 use crate::handlers::update_posters::*;
 use axum::{
     Router,
-    routing::{delete, get, post, put},
+    routing::{get, post},
 };
 use sea_orm::DatabaseConnection;
 

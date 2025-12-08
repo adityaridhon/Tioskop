@@ -1,7 +1,7 @@
 use crate::handlers::booking_handler::*;
 use axum::{
     Router,
-    routing::{get, post, put},
+    routing::{get, put},
 };
 use sea_orm::DatabaseConnection;
 

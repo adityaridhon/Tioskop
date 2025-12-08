@@ -1,5 +1,5 @@
 use crate::models::response::ApiResponse;
-use crate::entities::{MoviesEntity, Movie};
+use crate::entities::MoviesEntity;
 use axum::{Json, extract::State};
 use serde::Serialize;
 use sea_orm::{DatabaseConnection, Set, EntityTrait, ActiveModelTrait, IntoActiveModel};

@@ -197,7 +197,6 @@ pub async fn get_detail(db: &DatabaseConnection, id: i64) -> Result<BookingDetai
     Ok(build_booking_detail(booking, seats))
 }
 
-/// Create new booking 
 pub async fn create(
     db: &DatabaseConnection,
     user_id: i64,
