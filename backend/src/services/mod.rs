@@ -6,3 +6,4 @@ pub use workflow_service::{
 pub mod booking;
 pub mod movie;
 pub mod showtime;
+pub mod studio;

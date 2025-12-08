@@ -38,14 +38,12 @@ pub async fn get_seats_by_studio(
 }
 
 // Get seats by showtime
-// TODO: Complex JOIN query - consider using sea_query for advanced queries
 pub async fn get_seats_by_showtime(
     State(db): State<DatabaseConnection>,
     Path(showtime_id): Path<i64>,
 ) -> Json<ApiResponse<Vec<SeatWithBookingStatus>>> {
     use sea_orm::FromQueryResult;
 
-    // Using raw SQL for complex JOIN (SeaORM doesn't handle this well)
     let sql = r#"
         SELECT 
             s.id, 
@@ -157,7 +155,6 @@ pub async fn generate_seats_for_studio(
     State(db): State<DatabaseConnection>,
     Json(payload): Json<GenerateSeatsRequest>,
 ) -> Json<ApiResponse<GenerateSeatsResponse>> {
-    // Check if studio exists
     let studio_exists = StudiosEntity::find_by_id(payload.studio_id)
         .one(&db)
         .await;
@@ -166,7 +163,6 @@ pub async fn generate_seats_for_studio(
         Ok(Some(_)) => {
             use crate::entities::seats::ActiveModel;
 
-            // Generate seat codes (immutable)
             let seat_codes: Vec<(String, i32, i32)> = (1..=payload.rows)
                 .flat_map(|row| {
                     let row_letter = char::from(b'A' + (row - 1) as u8).to_string();
@@ -176,7 +172,6 @@ pub async fn generate_seats_for_studio(
                 })
                 .collect();
 
-            // ✅ IMMUTABLE APPROACH: Insert all seats sequentially
             let insert_count = {
                 let mut count = 0i32;
                 for (seat_code, row, col) in seat_codes {

@@ -63,19 +63,10 @@ impl JadwalWorkflowService {
         Self { db }
     }
 
-    // ========================================================================
-    // DATABASE LAYER - SeaORM
-    // ========================================================================
-    
     pub async fn fetch_jadwal_dari_db(&self) -> Result<Vec<Showtime>, sea_orm::DbErr> {
         ShowtimesEntity::find().all(&self.db).await
     }
 
-    // ========================================================================
-    // RAYON MULTIPROCESSING - PARALLEL OPERATIONS
-    // ========================================================================
-    
-    /// RAYON: Cari jadwal terdekat dengan parallel processing
     pub fn cari_jadwal_terdekat(jadwal_slice: &[Showtime]) -> HasilAnalisa {
         if jadwal_slice.is_empty() {
             return HasilAnalisa::TidakAdaJadwal;
@@ -111,11 +102,9 @@ impl JadwalWorkflowService {
         }
     }
 
-    /// RAYON: Filter jadwal terdekat per film di semua bioskop (parallel grouping)
     pub fn filter_jadwal_terdekat_per_film(jadwal_slice: &[Showtime]) -> Vec<(i64, StatusJadwal)> {
         let waktu_sekarang = Local::now();
         
-        // RAYON: Parallel grouping by movie_id
         let jadwal_by_movie: HashMap<i64, Vec<&Showtime>> = jadwal_slice
             .par_iter()
             .filter_map(|j| j.movie_id.map(|mid| (mid, j)))
@@ -136,7 +125,6 @@ impl JadwalWorkflowService {
                 },
             );
         
-        // RAYON: Parallel search jadwal terdekat per film
         jadwal_by_movie
             .par_iter()
             .filter_map(|(movie_id, jadwal_list)| {
@@ -169,14 +157,12 @@ impl JadwalWorkflowService {
             .collect()
     }
     
-    /// RAYON: Filter jadwal terdekat untuk 1 film di semua bioskop (parallel grouping)
     pub fn filter_jadwal_terdekat_film_semua_bioskop(
         jadwal_slice: &[Showtime],
         movie_id: i64,
     ) -> Vec<(i64, StatusJadwal)> {
         let waktu_sekarang = Local::now();
         
-        // RAYON: Parallel filter & grouping by studio
         let jadwal_by_studio: HashMap<i64, Vec<&Showtime>> = jadwal_slice
             .par_iter()
             .filter(|j| j.movie_id == Some(movie_id))
@@ -198,7 +184,6 @@ impl JadwalWorkflowService {
                 },
             );
         
-        // RAYON: Parallel search jadwal terdekat per bioskop
         jadwal_by_studio
             .par_iter()
             .filter_map(|(studio_id, jadwal_list)| {
@@ -231,7 +216,6 @@ impl JadwalWorkflowService {
             .collect()
     }
 
-    /// RAYON: Multi-level filtering dengan parallel execution
     pub fn filter_kompleks(jadwal_slice: &[Showtime], kriteria: &FilterKriteria) -> Vec<Showtime> {
         let waktu_sekarang = Local::now();
         
@@ -295,7 +279,6 @@ impl JadwalWorkflowService {
             .collect()
     }
 
-    /// RAYON: Agregasi statistik dengan parallel reduce
     pub fn hitung_statistik(jadwal_slice: &[Showtime]) -> JadwalStatistik {
         let waktu_sekarang = Local::now();
         let hari_ini = waktu_sekarang.date_naive();
@@ -380,7 +363,6 @@ impl JadwalWorkflowService {
         }
     }
 
-    /// RAYON: Cari studio terpopuler dengan parallel grouping
     fn studio_terpopuler_parallel(jadwal_slice: &[Showtime]) -> Option<i64> {
         let studio_counts: HashMap<i64, usize> = jadwal_slice
             .par_iter()
@@ -408,7 +390,6 @@ impl JadwalWorkflowService {
             .map(|(studio_id, _)| studio_id)
     }
 
-    /// RAYON: Cari movie terpopuler dengan parallel grouping
     fn movie_terpopuler_parallel(jadwal_slice: &[Showtime]) -> Option<i64> {
         let movie_counts: HashMap<i64, usize> = jadwal_slice
             .par_iter()
@@ -436,7 +417,6 @@ impl JadwalWorkflowService {
             .map(|(movie_id, _)| movie_id)
     }
 
-    /// RAYON: Filter by studio
     pub fn filter_by_studio(jadwal_slice: &[Showtime], studio_id: i64) -> Vec<&Showtime> {
         jadwal_slice
             .par_iter()
@@ -444,7 +424,6 @@ impl JadwalWorkflowService {
             .collect()
     }
 
-    /// RAYON: Filter by movie
     pub fn filter_by_movie(jadwal_slice: &[Showtime], movie_id: i64) -> Vec<&Showtime> {
         jadwal_slice
             .par_iter()
@@ -456,17 +435,12 @@ impl JadwalWorkflowService {
         jadwal_slice.len()
     }
 
-    /// RAYON: Cari jadwal dengan harga tertinggi
     pub fn jadwal_harga_tertinggi(jadwal_slice: &[Showtime]) -> Option<&Showtime> {
         jadwal_slice
             .par_iter()
             .filter(|jadwal| jadwal.price.is_some())
             .max_by_key(|jadwal| jadwal.price.unwrap())
     }
-
-    // ========================================================================
-    // WORKFLOW ORCHESTRATION
-    // ========================================================================
 
     pub async fn execute_workflow(&self) -> Result<HasilAnalisa, String> {
         let jadwal_vec = self
