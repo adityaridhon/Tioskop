@@ -107,7 +107,6 @@
                                 Pilih Tanggal
                             </h2>
                         </div>
-
                     </div>
                     <div class="flex gap-3 overflow-x-auto pb-2">
                         <button
@@ -131,8 +130,6 @@
                             </div>
                         </button>
                     </div>
-
-
                 </div>
 
                 <!-- Showtime Selection -->
@@ -147,39 +144,98 @@
                                 Jadwal Tayang
                             </h2>
                         </div>
-                        <!-- Nearest Showtime Button - Moved Here -->
+                        <!-- Toggle Nearest Showtime Button -->
                         <button
-                            @click="findNearestShowtime"
-                            class="px-4 py-2 bg-[#143C8C] text-white rounded-lg hover:bg-[#0f2d6b] transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg text-sm"
+                            @click="toggleNearestMode"
+                            :class="[
+                                'px-4 py-2 rounded-lg transition-all duration-200 font-medium flex items-center gap-2 shadow-md hover:shadow-lg text-sm',
+                                isNearestMode
+                                    ? 'bg-green-600 text-white hover:bg-green-700'
+                                    : 'bg-[#143C8C] text-white hover:bg-[#0f2d6b]',
+                            ]"
                         >
                             <Clock class="w-4 h-4" />
-                            Jadwal Terdekat
+                            <span v-if="!isNearestMode"
+                                >Aktifkan Jadwal Terdekat</span
+                            >
+                            <span v-else>Nonaktifkan Filter</span>
+                            <svg
+                                v-if="isNearestMode"
+                                class="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                            >
+                                <path
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    stroke-width="2"
+                                    d="M5 13l4 4L19 7"
+                                />
+                            </svg>
                         </button>
                     </div>
 
                     <!-- Showtime Info -->
                     <div class="mb-4 p-4 bg-gray-50 rounded-lg">
-                        <div class="flex items-center gap-2 text-sm text-gray-600">
-                            <MapPin class="w-4 h-4" />
-                            <span>{{ selectedCinema ? getSelectedCinemaName() : 'Semua Bioskop' }}</span>
-                        </div>
-                        <div class="flex items-center gap-2 text-sm text-gray-600 mt-1">
-                            <span>{{ formatDate(selectedDate) }}</span>
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div
+                                    class="flex items-center gap-2 text-sm text-gray-600"
+                                >
+                                    <MapPin class="w-4 h-4" />
+                                    <span>{{
+                                        selectedCinema
+                                            ? getSelectedCinemaName()
+                                            : "Semua Bioskop"
+                                    }}</span>
+                                </div>
+                                <div
+                                    class="flex items-center gap-2 text-sm text-gray-600 mt-1"
+                                >
+                                    <span>{{ formatDate(selectedDate) }}</span>
+                                </div>
+                            </div>
+                            <!-- Active Filter Badge -->
+                            <div
+                                v-if="isNearestMode"
+                                class="flex items-center gap-2 px-3 py-1.5 bg-green-100 text-green-700 rounded-lg text-sm font-medium"
+                            >
+                                <svg
+                                    class="w-4 h-4"
+                                    fill="currentColor"
+                                    viewBox="0 0 20 20"
+                                >
+                                    <path
+                                        fill-rule="evenodd"
+                                        d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                        clip-rule="evenodd"
+                                    />
+                                </svg>
+                                <span>Filter Aktif</span>
+                            </div>
                         </div>
                     </div>
 
-
                     <!-- Showtimes Grouped by Cinema -->
-                    <div v-if="filteredShowtimes.length > 0" class="space-y-6">
-                        <div 
-                            v-for="(group, index) in groupedShowtimes" 
+                    <!-- Mode 1: Normal View - Card per Cinema dengan jadwal horizontal -->
+                    <div
+                        v-if="!isNearestMode && filteredShowtimes.length > 0"
+                        class="space-y-6"
+                    >
+                        <div
+                            v-for="(group, index) in groupedShowtimes"
                             :key="index"
                             class="border-2 border-gray-200 rounded-xl p-5"
                         >
                             <!-- Cinema Header -->
                             <div class="mb-4">
-                                <h3 class="font-bold text-lg text-gray-900">{{ group.cinemaName }}</h3>
-                                <div class="flex items-center gap-1 text-sm text-gray-600 mt-1">
+                                <h3 class="font-bold text-lg text-gray-900">
+                                    {{ group.cinemaName }}
+                                </h3>
+                                <div
+                                    class="flex items-center gap-1 text-sm text-gray-600 mt-1"
+                                >
                                     <MapPin class="w-3.5 h-3.5" />
                                     <span>{{ group.cinemaAddress }}</span>
                                 </div>
@@ -195,55 +251,219 @@
                                         'flex-shrink-0 p-4 rounded-lg border-2 transition-all duration-200 min-w-[140px]',
                                         selectedShowtime?.id === showtime.id
                                             ? 'border-[#143C8C] bg-[#143C8C] text-white shadow-md'
-                                            : isNearestShowtime(showtime) 
-                                                ? 'border-[#143C8C] bg-blue-50 ring-2 ring-blue-300' 
-                                                : 'border-gray-200 hover:border-[#143C8C] hover:bg-gray-50'
+                                            : 'border-gray-200 hover:border-[#143C8C] hover:bg-gray-50',
                                     ]"
                                 >
                                     <div class="flex items-center gap-2 mb-2">
-                                        <Clock class="w-4 h-4" :class="selectedShowtime?.id === showtime.id ? 'text-white' : 'text-gray-600'" />
-                                        <div class="text-lg font-bold" :class="selectedShowtime?.id === showtime.id ? 'text-white' : 'text-gray-900'">
-                                            {{ formatTime(showtime.start_time) }}
+                                        <Clock
+                                            class="w-4 h-4"
+                                            :class="
+                                                selectedShowtime?.id ===
+                                                showtime.id
+                                                    ? 'text-white'
+                                                    : 'text-gray-600'
+                                            "
+                                        />
+                                        <div
+                                            class="text-lg font-bold"
+                                            :class="
+                                                selectedShowtime?.id ===
+                                                showtime.id
+                                                    ? 'text-white'
+                                                    : 'text-gray-900'
+                                            "
+                                        >
+                                            {{
+                                                formatTime(showtime.start_time)
+                                            }}
                                         </div>
                                     </div>
-                                    <div class="text-sm" :class="selectedShowtime?.id === showtime.id ? 'text-blue-100' : 'text-gray-600'">
-                                        Rp 35.000
+                                    <div
+                                        class="text-sm"
+                                        :class="
+                                            selectedShowtime?.id === showtime.id
+                                                ? 'text-blue-100'
+                                                : 'text-gray-600'
+                                        "
+                                    >
+                                        {{ formatPrice(showtime.price) }}
                                     </div>
-                                    <div class="text-xs mt-1" :class="selectedShowtime?.id === showtime.id ? 'text-blue-100' : 'text-gray-500'">
-                                        {{ showtime.available_seats || 48 }} kursi tersedia
-                                    </div>
-                                    <div v-if="isNearestShowtime(showtime) && selectedShowtime?.id !== showtime.id" class="text-xs text-[#143C8C] font-semibold mt-1">
-                                        Terdekat
+                                    <div
+                                        class="text-xs mt-1"
+                                        :class="
+                                            selectedShowtime?.id === showtime.id
+                                                ? 'text-blue-100'
+                                                : 'text-gray-500'
+                                        "
+                                    >
+                                        {{
+                                            calculateAvailableSeats(
+                                                showtime.studio_id
+                                            )
+                                        }}
+                                        kursi tersedia
                                     </div>
                                 </button>
                             </div>
                         </div>
                     </div>
 
+                    <!-- Mode 2: Nearest View - Card per Showtime compact style -->
+                    <div
+                        v-if="isNearestMode && filteredShowtimes.length > 0"
+                        class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3"
+                    >
+                        <template
+                            v-for="(group, index) in groupedShowtimes"
+                            :key="index"
+                        >
+                            <!-- Each Showtime Card -->
+                            <div
+                                v-for="showtime in group.showtimes"
+                                :key="showtime.id"
+                                @click="selectShowtime(showtime)"
+                                class="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-lg hover:border-[#143C8C] transition-all duration-200 flex flex-col cursor-pointer min-w-[140px]"
+                            >
+                                <!-- Cinema Name -->
+                                <h3
+                                    class="font-bold text-sm text-gray-900 mb-2 text-center line-clamp-1"
+                                >
+                                    {{ group.cinemaName }}
+                                </h3>
+
+                                <!-- Time Badge -->
+                                <div class="text-center mb-2">
+                                    <div
+                                        class="text-lg font-bold text-gray-900"
+                                    >
+                                        {{ formatTime(showtime.start_time) }}
+                                    </div>
+                                </div>
+
+                                <!-- Price -->
+                                <div class="text-center mb-1">
+                                    <div class="text-sm text-gray-600">
+                                        {{ formatPrice(showtime.price) }}
+                                    </div>
+                                </div>
+
+                                <!-- Available Seats -->
+                                <div class="text-center text-xs text-gray-500">
+                                    {{
+                                        calculateAvailableSeats(
+                                            showtime.studio_id
+                                        )
+                                    }}
+                                    kursi tersedia
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+
                     <!-- Confirmation Section -->
-                    <div v-if="selectedShowtime" class="mt-6 p-6 bg-blue-50 border-2 border-[#143C8C] rounded-xl">
+                    <div
+                        v-if="selectedShowtime && !isNearestMode"
+                        class="mt-6 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border-2 border-[#143C8C] rounded-xl shadow-lg"
+                    >
                         <div class="flex items-start justify-between mb-4">
-                            <div>
-                                <h3 class="text-lg font-bold text-[#143C8C] mb-2">Konfirmasi Jadwal</h3>
-                                <div class="space-y-1 text-sm text-gray-700">
-                                    <p><span class="font-semibold">Film:</span> {{ movie.title }}</p>
-                                    <p><span class="font-semibold">Bioskop:</span> {{ getSelectedCinemaName() }}</p>
-                                    <p><span class="font-semibold">Tanggal:</span> {{ formatDate(selectedDate) }}</p>
-                                    <p><span class="font-semibold">Waktu:</span> {{ formatTime(selectedShowtime.start_time) }}</p>
-                                    <p><span class="font-semibold">Harga:</span> Rp 35.000</p>
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-3">
+                                    <div class="bg-[#143C8C] p-2 rounded-lg">
+                                        <svg
+                                            class="w-5 h-5 text-white"
+                                            fill="none"
+                                            stroke="currentColor"
+                                            viewBox="0 0 24 24"
+                                        >
+                                            <path
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="2"
+                                                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                            />
+                                        </svg>
+                                    </div>
+                                    <h3
+                                        class="text-xl font-bold text-[#143C8C]"
+                                    >
+                                        Jadwal Terpilih
+                                    </h3>
+                                </div>
+                                <div class="grid grid-cols-2 gap-3 text-sm">
+                                    <div>
+                                        <p class="text-gray-500 mb-1">Film</p>
+                                        <p class="font-semibold text-gray-900">
+                                            {{ movie.title }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500 mb-1">
+                                            Bioskop
+                                        </p>
+                                        <p class="font-semibold text-gray-900">
+                                            {{
+                                                getCinemaNameFromStudio(
+                                                    selectedShowtime.studio_id
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500 mb-1">
+                                            Tanggal & Waktu
+                                        </p>
+                                        <p class="font-semibold text-gray-900">
+                                            {{
+                                                formatDateShort(
+                                                    selectedShowtime.start_time
+                                                )
+                                            }}
+                                            •
+                                            {{
+                                                formatTime(
+                                                    selectedShowtime.start_time
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <p class="text-gray-500 mb-1">Harga</p>
+                                        <p
+                                            class="font-semibold text-[#143C8C] text-lg"
+                                        >
+                                            {{
+                                                formatPrice(
+                                                    selectedShowtime.price
+                                                )
+                                            }}
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="flex gap-3">
                             <button
                                 @click="confirmShowtime"
-                                class="flex-1 px-6 py-3 bg-[#143C8C] text-white rounded-lg hover:bg-[#0f2d6b] transition-colors font-medium shadow-md"
+                                class="flex-1 px-6 py-3 bg-[#143C8C] text-white rounded-lg hover:bg-[#0f2d6b] transition-all duration-200 font-semibold shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                             >
-                                Lanjut ke Pemesanan
+                                <svg
+                                    class="w-5 h-5"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <path
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="2"
+                                        d="M13 7l5 5m0 0l-5 5m5-5H6"
+                                    />
+                                </svg>
+                                Lanjut ke Pemilihan Kursi
                             </button>
                             <button
                                 @click="cancelShowtime"
-                                class="px-6 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                                class="px-6 py-3 bg-white border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                             >
                                 Batal
                             </button>
@@ -251,8 +471,13 @@
                     </div>
 
                     <!-- No Showtimes -->
-                    <div v-else-if="filteredShowtimes.length === 0" class="text-center py-8 text-gray-500">
-                        <p>Tidak ada jadwal tayang untuk tanggal yang dipilih</p>
+                    <div
+                        v-else-if="filteredShowtimes.length === 0"
+                        class="text-center py-8 text-gray-500"
+                    >
+                        <p>
+                            Tidak ada jadwal tayang untuk tanggal yang dipilih
+                        </p>
                     </div>
                 </div>
 
@@ -310,6 +535,7 @@ const selectedDate = ref(null);
 const selectedCinema = ref(null);
 const nearestShowtimeId = ref(null); // Track nearest showtime for highlighting
 const selectedShowtime = ref(null); // Track selected showtime for confirmation
+const isNearestMode = ref(false); // Track if in "nearest showtime" mode
 
 // Fetch movie data
 const fetchMovieData = async () => {
@@ -326,9 +552,7 @@ const fetchMovieData = async () => {
         const result = await response.json();
         const movies = result.data || [];
 
-        const foundMovie = movies.find(
-            (m) => m.id === parseInt(movieId)
-        );
+        const foundMovie = movies.find((m) => m.id === parseInt(movieId));
 
         if (foundMovie) {
             movie.value = foundMovie;
@@ -405,11 +629,11 @@ const filteredShowtimes = computed(() => {
 
     // Mapping cinema slug to studio IDs
     const cinemaToStudioMap = {
-        'ewalk-xxi': [1, 2],                                    // E-WALK XXI has studio 1 and 2
-        'cgv-plaza-balikpapan': [3],                           // CGV Plaza has studio 3
-        'cinepolis-living-plaza-balikpapan': [4],              // Cinepolis has studio 4
-        'pentacity-xxi': [1, 2],                               // Pentacity XXI (same as XXI)
-        'studio-xxi': [1, 2],                                  // Studio XXI (same as XXI)
+        "ewalk-xxi": [1, 2], // E-WALK XXI has studio 1 and 2
+        "cgv-plaza-balikpapan": [3], // CGV Plaza has studio 3
+        "cinepolis-living-plaza-balikpapan": [4], // Cinepolis has studio 4
+        "pentacity-xxi": [1, 2], // Pentacity XXI (same as XXI)
+        "studio-xxi": [1, 2], // Studio XXI (same as XXI)
     };
 
     // Get studio IDs for selected cinema
@@ -418,9 +642,11 @@ const filteredShowtimes = computed(() => {
     return showtimeList.value.filter((st) => {
         const dateObj = new Date(st.start_time);
         const fullDate = dateObj.toISOString().split("T")[0];
-        
+
         // Filter by date AND studio (cinema)
-        return fullDate === selectedDate.value && studioIds.includes(st.studio_id);
+        return (
+            fullDate === selectedDate.value && studioIds.includes(st.studio_id)
+        );
     });
 });
 
@@ -434,19 +660,21 @@ const groupedShowtimes = computed(() => {
     // Group showtimes by cinema name (not studio_id)
     showtimes.forEach((showtime) => {
         const cinemaName = getCinemaNameFromStudio(showtime.studio_id);
-        
+
         if (!grouped[cinemaName]) {
             grouped[cinemaName] = {
                 cinemaName: cinemaName,
                 cinemaAddress: getCinemaAddressFromStudio(showtime.studio_id),
-                showtimes: []
+                showtimes: [],
             };
         }
         grouped[cinemaName].showtimes.push(showtime);
     });
 
     // Convert to array and sort by cinema name
-    return Object.values(grouped).sort((a, b) => a.cinemaName.localeCompare(b.cinemaName));
+    return Object.values(grouped).sort((a, b) =>
+        a.cinemaName.localeCompare(b.cinemaName)
+    );
 });
 
 // Helper functions
@@ -471,30 +699,79 @@ const formatTime = (dateTimeStr) => {
         .replace(".", ":");
 };
 
+const formatDateShort = (dateTimeStr) => {
+    const dateObj = new Date(dateTimeStr);
+    return dateObj.toLocaleDateString("id-ID", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    });
+};
+
+const formatPrice = (price) => {
+    if (!price) return "Rp 0";
+    return `Rp ${parseInt(price).toLocaleString("id-ID")}`;
+};
+
+const calculateTimeRemaining = (dateTimeStr) => {
+    const now = new Date();
+    const showtimeDate = new Date(dateTimeStr);
+    const diff = showtimeDate - now;
+
+    if (diff < 0) return "Sudah lewat";
+
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+    if (hours > 24) {
+        const days = Math.floor(hours / 24);
+        return `${days} hari lagi`;
+    }
+
+    return `${hours} jam ${minutes} menit lagi`;
+};
+
+const calculateAvailableSeats = (studioId) => {
+    // Default capacity per studio (you can adjust this based on your actual data)
+    const studioCapacities = {
+        1: 45,
+        2: 40,
+        3: 42,
+        4: 50,
+        5: 38,
+        6: 45,
+    };
+
+    // For now, return random available seats (you can later integrate with actual booking data)
+    const capacity = studioCapacities[studioId] || 50;
+    const bookedSeats = Math.floor(Math.random() * 10); // Simulate some booked seats
+    return capacity - bookedSeats;
+};
+
 const getCinemaNameFromStudio = (studioId) => {
     // Map studio ID to cinema name
     const studioToCinemaMap = {
-        1: 'E-WALK XXI',
-        2: 'E-WALK XXI',
-        3: 'CGV Plaza Balikpapan',
-        4: 'Cinepolis Living Plaza',
-        5: 'PENTACITY XXI',
-        6: 'STUDIO XXI',
+        1: "E-WALK XXI",
+        2: "E-WALK XXI",
+        3: "CGV Plaza Balikpapan",
+        4: "Cinepolis Living Plaza",
+        5: "PENTACITY XXI",
+        6: "STUDIO XXI",
     };
-    return studioToCinemaMap[studioId] || 'Unknown Cinema';
+    return studioToCinemaMap[studioId] || "Unknown Cinema";
 };
 
 const getCinemaAddressFromStudio = (studioId) => {
     // Map studio ID to cinema address
     const studioToAddressMap = {
-        1: 'E-Walk Balikpapan Superblock',
-        2: 'E-Walk Balikpapan Superblock',
-        3: 'Plaza Balikpapan, Jl. Jenderal Sudirman',
-        4: 'Living Plaza Balikpapan, Jl. MT Haryono',
-        5: 'Pentacity Mall Balikpapan',
-        6: 'Jl. Jenderal Sudirman',
+        1: "E-Walk Balikpapan Superblock",
+        2: "E-Walk Balikpapan Superblock",
+        3: "Plaza Balikpapan, Jl. Jenderal Sudirman",
+        4: "Living Plaza Balikpapan, Jl. MT Haryono",
+        5: "Pentacity Mall Balikpapan",
+        6: "Jl. Jenderal Sudirman",
     };
-    return studioToAddressMap[studioId] || '';
+    return studioToAddressMap[studioId] || "";
 };
 
 const getSelectedCinemaName = () => {
@@ -507,12 +784,26 @@ const isNearestShowtime = (showtime) => {
 };
 
 const selectShowtime = (showtime) => {
+    // If in nearest mode, go directly to booking page
+    if (isNearestMode.value) {
+        router.push({
+            name: "PemesananFilm",
+            params: { movieId: route.params.movieId },
+            query: { showtimeId: showtime.id },
+        });
+        return;
+    }
+
+    // Normal mode: show confirmation section
     selectedShowtime.value = showtime;
     // Scroll to confirmation section
     setTimeout(() => {
-        const confirmSection = document.querySelector('.bg-blue-50.border-2');
+        const confirmSection = document.querySelector(".bg-blue-50.border-2");
         if (confirmSection) {
-            confirmSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            confirmSection.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+            });
         }
     }, 100);
 };
@@ -531,6 +822,18 @@ const cancelShowtime = () => {
     selectedShowtime.value = null;
 };
 
+// Toggle nearest mode on/off
+const toggleNearestMode = () => {
+    if (isNearestMode.value) {
+        // Turn OFF: Reset to normal mode
+        isNearestMode.value = false;
+        nearestShowtimeId.value = null;
+    } else {
+        // Turn ON: Find and show nearest showtimes
+        findNearestShowtime();
+    }
+};
+
 // Find nearest showtime function (multiprocessing concept)
 const findNearestShowtime = () => {
     if (showtimeList.value.length === 0) {
@@ -538,7 +841,7 @@ const findNearestShowtime = () => {
     }
 
     const now = new Date();
-    
+
     // Filter only future showtimes (yang belum lewat) - ACROSS ALL DATES AND CINEMAS
     const futureShowtimes = showtimeList.value.filter((st) => {
         const showtimeDate = new Date(st.start_time);
@@ -546,7 +849,7 @@ const findNearestShowtime = () => {
     });
 
     if (futureShowtimes.length === 0) {
-        alert('Tidak ada jadwal tayang yang tersedia untuk waktu mendatang.');
+        alert("Tidak ada jadwal tayang yang tersedia untuk waktu mendatang.");
         return;
     }
 
@@ -567,28 +870,53 @@ const findNearestShowtime = () => {
 
     // Get the nearest showtime
     const nearest = showtimesWithDiff[0];
-    
+
     // Set nearest showtime ID for highlighting
     nearestShowtimeId.value = nearest.showtime.id;
-    
+
+    // Enable nearest mode
+    isNearestMode.value = true;
+
     // Auto-select the date of nearest showtime
     selectedDate.value = nearest.date;
-    
+
     // Reset cinema selection to show ALL cinemas for that date
     selectedCinema.value = null;
-    
+
     // Scroll to showtime section
     setTimeout(() => {
-        const showtimeSection = document.querySelector('.grid.grid-cols-2');
+        const showtimeSection = document.querySelector(".space-y-4");
         if (showtimeSection) {
-            showtimeSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            showtimeSection.scrollIntoView({
+                behavior: "smooth",
+                block: "nearest",
+            });
         }
     }, 300);
 };
 
-// Watch for date changes and reset cinema selection
+// Watch for dates to auto-select first date
+watch(dates, (newDates) => {
+    if (newDates.length > 0 && !selectedDate.value) {
+        selectedDate.value = newDates[0].full;
+    }
+});
+
+// Watch for date changes and reset cinema selection + disable nearest mode
 watch(selectedDate, () => {
     selectedCinema.value = null;
+    // Only disable nearest mode if user manually changes date
+    if (!nearestShowtimeId.value) {
+        isNearestMode.value = false;
+    }
+});
+
+// Watch for cinema filter changes - disable nearest mode
+watch(selectedCinema, () => {
+    if (selectedCinema.value !== null) {
+        isNearestMode.value = false;
+        nearestShowtimeId.value = null;
+    }
 });
 
 // Lifecycle
@@ -620,7 +948,8 @@ onMounted(async () => {
 
 /* Pulse animation for nearest showtime */
 @keyframes pulse-slow {
-    0%, 100% {
+    0%,
+    100% {
         opacity: 1;
     }
     50% {

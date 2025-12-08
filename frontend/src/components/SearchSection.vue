@@ -42,8 +42,8 @@ const handleSearch = async () => {
     }
 };
 
-const navigateToBooking = (movieId) => {
-    router.push({ name: "PemesananFilm", params: { movieId } });
+const navigateToDetail = (movieId) => {
+    router.push({ name: "MovieDetail", params: { movieId: movieId } });
 };
 </script>
 
@@ -176,7 +176,7 @@ const navigateToBooking = (movieId) => {
                         v-for="movie in movies"
                         :key="movie.id"
                         class="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-shadow duration-300 cursor-pointer"
-                        @click="navigateToBooking(movie.id)"
+                        @click="navigateToDetail(movie.id)"
                     >
                         <!-- Movie Poster -->
                         <div
