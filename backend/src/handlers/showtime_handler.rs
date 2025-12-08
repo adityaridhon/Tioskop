@@ -113,6 +113,7 @@ pub async fn update_showtime(
     }
 }
 
+/// Delete showtime
 pub async fn delete_showtime(
     State(db): State<DatabaseConnection>,
     Path(id): Path<i64>,
@@ -132,5 +133,5 @@ pub async fn delete_showtime(
                 },
             ))
         })
-        .unwrap_or_else(|e| Json(ApiResponse::error(&format!("Database error: {}", e))))
+        .unwrap_or_else(|e| Json(ApiResponse::error(&e.to_string())))
 }
